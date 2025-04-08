@@ -2,7 +2,8 @@ package fctreddit.api.java;
 
 /**
  * 
- * Represents the result of an operation, either wrapping a result of the given type,
+ * Represents the result of an operation, either wrapping a result of the given
+ * type,
  * or an error.
  * 
  * @author smd
@@ -15,21 +16,25 @@ public interface Result<T> {
 	 * 
 	 * @author smd
 	 *
-	 * Service errors:
-	 * OK - no error, implies a non-null result of type T, except for for Void operations
-	 * CONFLICT - something is being created but already exists
-	 * NOT_FOUND - an access occurred to something that does not exist
-	 * INTERNAL_ERROR - something unexpected happened
+	 *         Service errors:
+	 *         OK - no error, implies a non-null result of type T, except for for
+	 *         Void operations
+	 *         CONFLICT - something is being created but already exists
+	 *         NOT_FOUND - an access occurred to something that does not exist
+	 *         INTERNAL_ERROR - something unexpected happened
 	 */
-	enum ErrorCode{ OK, CONFLICT, NOT_FOUND, BAD_REQUEST, FORBIDDEN, INTERNAL_ERROR, NOT_IMPLEMENTED, TIMEOUT};
-	
+	enum ErrorCode {
+		OK, CONFLICT, NOT_FOUND, BAD_REQUEST, FORBIDDEN, INTERNAL_ERROR, NOT_IMPLEMENTED, TIMEOUT
+	};
+
 	/**
 	 * Tests if the result is an error.
 	 */
 	boolean isOK();
-	
+
 	/**
 	 * obtains the payload value of this result
+	 * 
 	 * @return the value of this result.
 	 */
 	T value();
@@ -37,34 +42,38 @@ public interface Result<T> {
 	/**
 	 *
 	 * obtains the error code of this result
+	 * 
 	 * @return the error code
 	 * 
 	 */
 	ErrorCode error();
-	
+
 	/**
 	 * Convenience method for returning non error results of the given type
+	 * 
 	 * @param Class of value of the result
 	 * @return the value of the result
 	 */
-	static <T> Result<T> ok( T result ) {
+	static <T> Result<T> ok(T result) {
 		return new OkResult<>(result);
 	}
 
 	/**
 	 * Convenience method for returning non error results without a value
+	 * 
 	 * @return non-error result
 	 */
 	static <T> Result<T> ok() {
-		return new OkResult<>(null);	
+		return new OkResult<>(null);
 	}
-	
+
 	/**
-	 * Convenience method used to return an error 
+	 * Convenience method used to return an error
+	 * 
 	 * @return
 	 */
 	static <T> Result<T> error(ErrorCode error) {
-		return new ErrorResult<>(error);		
+		return new ErrorResult<>(error);
 	}
 }
 
@@ -74,11 +83,11 @@ public interface Result<T> {
 class OkResult<T> implements Result<T> {
 
 	final T result;
-	
+
 	OkResult(T result) {
 		this.result = result;
 	}
-	
+
 	@Override
 	public boolean isOK() {
 		return true;
@@ -93,7 +102,7 @@ class OkResult<T> implements Result<T> {
 	public ErrorCode error() {
 		return ErrorCode.OK;
 	}
-	
+
 	public String toString() {
 		return "(OK, " + value() + ")";
 	}
@@ -102,11 +111,11 @@ class OkResult<T> implements Result<T> {
 class ErrorResult<T> implements Result<T> {
 
 	final ErrorCode error;
-	
+
 	ErrorResult(ErrorCode error) {
 		this.error = error;
 	}
-	
+
 	@Override
 	public boolean isOK() {
 		return false;
@@ -121,8 +130,8 @@ class ErrorResult<T> implements Result<T> {
 	public ErrorCode error() {
 		return error;
 	}
-	
+
 	public String toString() {
-		return "(" + error() + ")";		
+		return "(" + error() + ")";
 	}
 }
