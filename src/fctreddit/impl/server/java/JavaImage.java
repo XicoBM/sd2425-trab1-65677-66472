@@ -9,6 +9,7 @@ import fctreddit.api.java.Image;
 import fctreddit.api.java.Result;
 import fctreddit.api.java.Result.ErrorCode;
 import fctreddit.impl.server.persistence.Hibernate;
+import fctreddit.api.rest.RestImage;
 
 public class JavaImage implements Image {
 
@@ -22,8 +23,31 @@ public class JavaImage implements Image {
 
     @Override
     public Result<String> createImage(String userId, byte[] imageContents, String password) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'createImage'");
+        Log.info("createImage : userId = " + userId + "; password = " + password);
+
+        if (password == null || imageContents == null) {
+            Log.info("UserId, password or imageContents null.");
+            return Result.error(ErrorCode.BAD_REQUEST);
+        }
+        User user = hibernate.get(User.class, userId);
+        if (user == null) {
+            Log.info("UserId does not exist.");
+            return Result.error(ErrorCode.NOT_FOUND);
+        }
+        if (!user.getPassword().equals(password)) {
+            Log.info("UserId or password incorrect.");
+            return Result.error(ErrorCode.FORBIDDEN);
+        }
+
+        try {
+            //<OK, String> in the case of success returning the URI to access the image. 
+            hibernate.persist(new RestImage(userId, imageContents));
+            return Result.ok(userId + "/" + imageContents);
+        } catch (Exception e) {
+            e.printStackTrace(); // Most likely the exception is due to the user already existing...
+            Log.info("Image already exists.");
+            return Result.error(ErrorCode.CONFLICT);
+        }
     }
 
     @Override
@@ -38,4 +62,3 @@ public class JavaImage implements Image {
         throw new UnsupportedOperationException("Unimplemented method 'deleteImage'");
     }
 }
-
