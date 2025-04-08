@@ -1,5 +1,5 @@
 package fctreddit.impl.server.rest;
 
-public class ContentServer {
+public class ContestServer {
     
 }
