@@ -12,28 +12,76 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response.Status;
 
 import fctreddit.api.rest.RestContent;
+import fctreddit.impl.server.persistence.Hibernate;
 import fctreddit.api.Post;
 import fctreddit.api.java.Result;
+import fctreddit.api.User;
 
 public class ContestResources implements RestContent {
 
     private static Logger Log = Logger.getLogger(ContestResources.class.getName());
-
+    private Hibernate hibernate;
 
     @Override
     public String createPost(Post post, String userPassword) {
-        Log.info("createPost called with userId: " + post.getUserId());
+        Log.info("createPost called with userId: " + post.getAuthorId());
+        User user = hibernate.get(User.class, post.getAuthorId());
 
-        if (post == null || userPassword == null) {
-            
+        if (post.getAuthorId() == null) {
+            Log.info("createPost: Invalid input.");
+            throw new WebApplicationException(Status.NOT_FOUND);
+        }
+        if (user.getPassword() != userPassword) {
+            Log.info("createPost: Invalid input.");
+            throw new WebApplicationException(Status.FORBIDDEN);
         }
 
+        try {
+            hibernate.persist(post);
+            Log.info(Status.OK + " : Post created with ID " + post.getPostId());
+            return post.getPostId();
+        } catch (Exception e) {
+            e.printStackTrace();
+            Log.info("createPost: Failed to write post.");
+            throw new WebApplicationException(Status.BAD_REQUEST);
+        }
     }
 
     @Override
     public List<String> getPosts(long timestamp, String sortOrder) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getPosts'");
+        Log.info("getPosts called with timestamp: " + timestamp + " and sortOrder: " + sortOrder);
+
+        try {
+            // Recupera todos os posts do banco de dados
+            List<Post> posts = hibernate.jpql("SELECT p FROM Post p WHERE p.parentId IS NULL", Post.class);
+            // Filtra os posts pelo timestamp, se fornecido
+            if (timestamp > 0) {
+                posts = posts.stream()
+                        .filter(post -> post.getCreationTimestamp() >= timestamp)
+                        .toList();
+            }
+            if (sortOrder != null) {
+                switch (sortOrder) {
+                    case "MOST_UP_VOTES":
+                        posts.sort((p1, p2) -> Integer.compare(p2.getUpVote(), p1.getUpVote()));
+                        break;
+                    /*
+                    case "MOST_REPLIES":
+                        posts.sort((p1, p2) -> Integer.compare(p2.getReplies().size(), p1.getReplies().size()));
+                        break;
+                    */
+                    default:
+                        Log.warning("Invalid sortOrder: " + sortOrder);
+                        break;
+                }
+            }
+            return posts.stream()
+                    .map(Post::getPostId)
+                    .toList();
+        } catch (Exception e) {
+            Log.severe("Error retrieving posts: " + e.getMessage());
+            throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @Override
@@ -95,5 +143,5 @@ public class ContestResources implements RestContent {
         // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'getDownVotes'");
     }
-    
+
 }
