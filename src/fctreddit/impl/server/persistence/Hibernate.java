@@ -7,6 +7,8 @@ import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
 
+import jakarta.persistence.TypedQuery;
+
 public class Hibernate {
 	private static final String HIBERNATE_CFG_FILE = "hibernate.cfg.xml";
 	private SessionFactory sessionFactory;
@@ -125,6 +127,15 @@ public class Hibernate {
 		try (var session = sessionFactory.openSession()) {
 			var query = session.createQuery(jpqlStatement, clazz);
 			return query.list();
+		} catch (Exception e) {
+			throw e;
+		}
+	}
+
+	public <T> TypedQuery<T> jpql2(String jpqlstatement, Class<T> clazz) {
+		try {
+			var session = sessionFactory.openSession();
+			return session.createQuery(jpqlstatement, clazz);
 		} catch (Exception e) {
 			throw e;
 		}

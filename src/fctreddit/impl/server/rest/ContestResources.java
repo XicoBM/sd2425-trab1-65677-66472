@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.Files;
 
+import jakarta.persistence.TypedQuery;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response.Status;
 
@@ -66,15 +67,17 @@ public class ContestResources implements RestContent {
                         posts.sort((p1, p2) -> Integer.compare(p2.getUpVote(), p1.getUpVote()));
                         break;
                     /*
-                    case "MOST_REPLIES":
-                        posts.sort((p1, p2) -> Integer.compare(p2.getReplies().size(), p1.getReplies().size()));
-                        break;
-                    */
+                     * case "MOST_REPLIES":
+                     * posts.sort((p1, p2) -> Integer.compare(p2.getReplies().size(),
+                     * p1.getReplies().size()));
+                     * break;
+                     */
                     default:
                         Log.warning("Invalid sortOrder: " + sortOrder);
                         break;
                 }
             }
+            Log.info(Status.OK + " : Posts retrieved with timestamp " + timestamp);
             return posts.stream()
                     .map(Post::getPostId)
                     .toList();
@@ -86,14 +89,45 @@ public class ContestResources implements RestContent {
 
     @Override
     public Post getPost(String postId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getPost'");
+        Log.info("getPost called with postId: " + postId);
+
+        try {
+            Post post = hibernate.get(Post.class, postId);
+            if (post == null) {
+                Log.info("getPost: Post not found.");
+                throw new WebApplicationException(Status.NOT_FOUND);
+            }
+            Log.info(Status.OK + " : Post retrieved with ID " + postId);
+            return post;
+        } catch (Exception e) {
+            Log.severe("Error retrieving post: " + e.getMessage());
+            throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @Override
     public List<String> getPostAnswers(String postId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getPostAnswers'");
+        Log.info("getPostAnswers called with postId: " + postId);
+
+        try {
+            Post post = hibernate.get(Post.class, postId);
+            if (post == null) {
+                Log.info("getPostAnswers: Post not found.");
+                throw new WebApplicationException(Status.NOT_FOUND);
+            }
+
+            TypedQuery<Post> query = hibernate.jpql2("SELECT p FROM Post p WHERE p.parentId = :parentId", Post.class);
+            query.setParameter("parentId", postId);
+            List<Post> answers = query.getResultList();
+            Log.info(Status.OK + " : Answers retrieved for post ID " + postId);
+            return answers.stream()
+                    .map(Post::getPostId)
+                    .toList();
+
+        } catch (Exception e) {
+            Log.severe("Error retrieving post answers: " + e.getMessage());
+            throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @Override
