@@ -132,14 +132,61 @@ public class ContestResources implements RestContent {
 
     @Override
     public Post updatePost(String postId, String userPassword, Post post) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'updatePost'");
+        Log.info("updatePost called with postId: " + postId + " and userPassword: " + userPassword);
+
+        User user = hibernate.get(User.class, post.getAuthorId());
+
+        if (user.getPassword() != userPassword) {
+            Log.info("updatePost: Invalid input.");
+            throw new WebApplicationException(Status.FORBIDDEN);
+        }
+        try {
+            Post existingPost = hibernate.get(Post.class, postId);
+            if (existingPost == null) {
+                Log.info("updatePost: Post not found.");
+                throw new WebApplicationException(Status.NOT_FOUND);
+            }
+
+            if (post.getContent() != null) {
+                existingPost.setContent(post.getContent());
+            }
+            if (post.getMediaUrl() != null) {
+                existingPost.setMediaUrl(post.getMediaUrl());
+            }
+
+            hibernate.update(existingPost);
+            Log.info(Status.OK + " : Post updated with ID " + postId);
+            return existingPost;
+        } catch (Exception e) {
+            Log.severe("Error updating post: " + e.getMessage());
+            throw new WebApplicationException(Status.BAD_REQUEST);
+        }
     }
 
     @Override
     public void deletePost(String postId, String userPassword) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'deletePost'");
+        Log.info("deletePost called with postId: " + postId + " and userPassword: " + userPassword);
+
+        Post post = hibernate.get(Post.class, postId);
+        if (post == null) {
+            Log.info("deletePost: Post not found.");
+            throw new WebApplicationException(Status.NOT_FOUND);
+        }
+
+        User user = hibernate.get(User.class, post.getAuthorId());
+        if (user.getPassword() != userPassword) {
+            Log.info("deletePost: Invalid input.");
+            throw new WebApplicationException(Status.FORBIDDEN);
+        }
+
+        try {
+            hibernate.delete(post);
+            Log.info(Status.NO_CONTENT.toString());
+        } catch (Exception e) {
+            Log.severe("Error deleting post: " + e.getMessage());
+            throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
+        }
+
     }
 
     @Override
