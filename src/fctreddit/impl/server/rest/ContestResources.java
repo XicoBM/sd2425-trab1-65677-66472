@@ -191,14 +191,28 @@ public class ContestResources implements RestContent {
 
     @Override
     public void upVotePost(String postId, String userId, String userPassword) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'upVotePost'");
+        Log.info("upVotePost called with postId: " + postId + " by userId: " + userId);
+
+        try {
+            removeVote(postId, userId, userPassword);
+            Log.info(Status.NO_CONTENT + " : Upvote removed from post with ID " + postId);
+        } catch (Exception e) {
+            Log.severe("Error upvoting post: " + e.getMessage());
+            throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @Override
     public void removeUpVotePost(String postId, String userId, String userPassword) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'removeUpVotePost'");
+        Log.info("removeUpVotePost called with postId: " + postId + " by userId: " + userId);
+
+        try {
+            removeVote(post, userId);
+            Log.info(Status.NO_CONTENT + " : Upvote removed from post with ID " + postId);
+        } catch (Exception e) {
+            Log.severe("Error removing upvote from post: " + e.getMessage());
+            throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @Override
@@ -225,4 +239,27 @@ public class ContestResources implements RestContent {
         throw new UnsupportedOperationException("Unimplemented method 'getDownVotes'");
     }
 
+    /*
+     * Generic code for the removing votes
+     */
+    private void removeVote(String postId, String userId, String userPassword) {
+        User user = hibernate.get(User.class, userId);
+        Post post = hibernate.get(Post.class, postId);
+
+        if (user == null || post == null) {
+            Log.info("removeUpVotePost: Invalid input.");
+            throw new WebApplicationException(Status.NOT_FOUND);
+        }
+        if (!user.getPassword().equals(userPassword)) {
+            Log.info("removeUpVotePost: Invalid input.");
+            throw new WebApplicationException(Status.FORBIDDEN);
+        }
+        if (post.getVoteByUser(userId) == null) {
+            Log.info("removeUpVotePost: User has not voted.");
+            throw new WebApplicationException(Status.CONFLICT);
+        }
+
+        post.removeVote(userId);
+        hibernate.update(post);
+    }
 }

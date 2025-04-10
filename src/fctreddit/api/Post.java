@@ -1,5 +1,8 @@
 package fctreddit.api;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Represents a Post and a Reply in the system
  */
@@ -11,15 +14,14 @@ public class Post {
 	private long creationTimestamp;
 	private String content;
 	private String mediaUrl;
-	private String parentUrl; //This should be null when this is a top level post.
+	private String parentUrl; // This should be null when this is a top level post.
 	private int upVote;
 	private int downVote;
-	
-	
+
 	public Post() {
-		
+
 	}
-	
+
 	public Post(String authorId, String content) {
 		this.postId = null;
 		this.authorId = authorId;
@@ -30,18 +32,19 @@ public class Post {
 		this.upVote = 0;
 		this.downVote = 0;
 	}
-	
+
 	public Post(String authorId, String content, String parentUrl) {
 		this(authorId, content);
 		this.parentUrl = parentUrl;
 	}
-	
+
 	public Post(String authorId, String content, String parentUrl, String mediaUrl) {
 		this(authorId, content, parentUrl);
 		this.mediaUrl = mediaUrl;
 	}
-	
-	public Post(String postId, String authorId, long creationTime, String content, String mediaUrl, String parentUrl, int upVote, int downVote) {
+
+	public Post(String postId, String authorId, long creationTime, String content, String mediaUrl, String parentUrl,
+			int upVote, int downVote) {
 		this.postId = postId;
 		this.authorId = authorId;
 		this.creationTimestamp = creationTime;
@@ -51,9 +54,7 @@ public class Post {
 		this.upVote = upVote;
 		this.downVote = downVote;
 	}
-	
-	
-	
+
 	public String getPostId() {
 		return postId;
 	}
@@ -127,10 +128,44 @@ public class Post {
 		result = prime * result + ((parentUrl == null) ? 0 : parentUrl.hashCode());
 		return result;
 	}
-	
+
 	@Override
 	public String toString() {
 		return "Post [postId=" + postId + ", authorId=" + authorId + ", content=" + content + ", mediaUrl=" + mediaUrl
-				+ ", parentUrl=" + parentUrl + ", creationTimestamp=" + creationTimestamp + ", upVote=" + upVote + ", downVote=" + downVote + "]";
+				+ ", parentUrl=" + parentUrl + ", creationTimestamp=" + creationTimestamp + ", upVote=" + upVote
+				+ ", downVote=" + downVote + "]";
+	}
+
+	/**
+	 * Wanted to create a way of tracking not only the votes of the post but also
+	 * the
+	 * type of vote (up or down) for each user.
+	 */
+
+	private Map<String, String> userVotes = new HashMap<>();
+
+	public Map<String, String> getUserVotes() {
+		return userVotes;
+	}
+
+	public void addVote(String userId, String vote) {
+		if (!vote.equals("up") && !vote.equals("down")) {
+			throw new IllegalArgumentException("Vote must be either 'up' or 'down'");
+		}
+
+		userVotes.put(userId, vote);
+		if (vote.equals("up")) {
+			upVote++;
+		} else if (vote.equals("down")) {
+			downVote++;
+		}
+	}
+
+	public void removeVote(String userId) {
+		userVotes.remove(userId);
+	}
+
+	public String getVoteByUser(String userId) {
+		return userVotes.get(userId);
 	}
 }
