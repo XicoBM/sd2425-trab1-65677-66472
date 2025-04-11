@@ -184,7 +184,7 @@ public class ContestResources implements RestContent {
             Log.info(Status.NO_CONTENT.toString());
         } catch (Exception e) {
             Log.severe("Error deleting post: " + e.getMessage());
-            throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
+            throw new WebApplicationException(Status.BAD_REQUEST);
         }
 
     }
@@ -193,12 +193,28 @@ public class ContestResources implements RestContent {
     public void upVotePost(String postId, String userId, String userPassword) {
         Log.info("upVotePost called with postId: " + postId + " by userId: " + userId);
 
+        User user = hibernate.get(User.class, userId);
+        Post post = hibernate.get(Post.class, postId);
+
+        if (user == null || post == null) {
+            Log.info("upVotePost: Invalid input.");
+            throw new WebApplicationException(Status.NOT_FOUND);
+        }
+        if (!user.getPassword().equals(userPassword)) {
+            Log.info("upVotePost: Invalid input.");
+            throw new WebApplicationException(Status.FORBIDDEN);
+        }
+        if (post.getVoteByUser(userId) != null) {
+            Log.info("upVotePost: User has not voted.");
+            throw new WebApplicationException(Status.CONFLICT);
+        }
+
         try {
-            removeVote(postId, userId, userPassword);
-            Log.info(Status.NO_CONTENT + " : Upvote removed from post with ID " + postId);
+            post.addVote(userId, "up");
+            Log.info(Status.NO_CONTENT + " : Upvote declared " + postId);
         } catch (Exception e) {
             Log.severe("Error upvoting post: " + e.getMessage());
-            throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
+            throw new WebApplicationException(Status.BAD_REQUEST);
         }
     }
 
@@ -206,25 +222,87 @@ public class ContestResources implements RestContent {
     public void removeUpVotePost(String postId, String userId, String userPassword) {
         Log.info("removeUpVotePost called with postId: " + postId + " by userId: " + userId);
 
+        User user = hibernate.get(User.class, userId);
+        Post post = hibernate.get(Post.class, postId);
+
+        if (user == null || post == null) {
+            Log.info("removeUpVotePost: Invalid input.");
+            throw new WebApplicationException(Status.NOT_FOUND);
+        }
+        if (!user.getPassword().equals(userPassword)) {
+            Log.info("removeUpVotePost: Invalid input.");
+            throw new WebApplicationException(Status.FORBIDDEN);
+        }
+        if (post.getVoteByUser(userId) == null) {
+            Log.info("removeUpVotePost: User has not voted.");
+            throw new WebApplicationException(Status.CONFLICT);
+        }
+
         try {
             removeVote(post, userId);
             Log.info(Status.NO_CONTENT + " : Upvote removed from post with ID " + postId);
         } catch (Exception e) {
             Log.severe("Error removing upvote from post: " + e.getMessage());
-            throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
+            throw new WebApplicationException(Status.BAD_REQUEST);
         }
     }
 
     @Override
     public void downVotePost(String postId, String userId, String userPassword) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'downVotePost'");
+        Log.info("downVotePost called with postId: " + postId + " by userId: " + userId);
+
+        User user = hibernate.get(User.class, userId);
+        Post post = hibernate.get(Post.class, postId);
+
+        if (user == null || post == null) {
+            Log.info("downVotePost: Invalid input.");
+            throw new WebApplicationException(Status.NOT_FOUND);
+        }
+        if (!user.getPassword().equals(userPassword)) {
+            Log.info("downVotePost: Invalid input.");
+            throw new WebApplicationException(Status.FORBIDDEN);
+        }
+        if (post.getVoteByUser(userId) != null) {
+            Log.info("downVotePost: User has not voted.");
+            throw new WebApplicationException(Status.CONFLICT);
+        }
+
+        try {
+            post.addVote(userId, "down");
+            Log.info(Status.NO_CONTENT + " : Downvote declared " + postId);
+        } catch (Exception e) {
+            Log.severe("Error upvoting post: " + e.getMessage());
+            throw new WebApplicationException(Status.BAD_REQUEST);
+        }
+
     }
 
     @Override
     public void removeDownVotePost(String postId, String userId, String userPassword) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'removeDownVotePost'");
+        Log.info("removeDownVotePost called with postId: " + postId + " by userId: " + userId);
+        User user = hibernate.get(User.class, userId);
+        Post post = hibernate.get(Post.class, postId);
+
+        if (user == null || post == null) {
+            Log.info("removeDownVotePost: Invalid input.");
+            throw new WebApplicationException(Status.NOT_FOUND);
+        }
+        if (!user.getPassword().equals(userPassword)) {
+            Log.info("removeDownVotePost: Invalid input.");
+            throw new WebApplicationException(Status.FORBIDDEN);
+        }
+        if (post.getVoteByUser(userId) == null) {
+            Log.info("removeDownVotePost: User has not voted.");
+            throw new WebApplicationException(Status.CONFLICT);
+        }
+
+        try {
+            removeVote(post, userId);
+            Log.info(Status.NO_CONTENT + " : Downvote removed from post with ID " + postId);
+        } catch (Exception e) {
+            Log.severe("Error removing downvote from post: " + e.getMessage());
+            throw new WebApplicationException(Status.BAD_REQUEST);
+        }
     }
 
     @Override
@@ -242,23 +320,7 @@ public class ContestResources implements RestContent {
     /*
      * Generic code for the removing votes
      */
-    private void removeVote(String postId, String userId, String userPassword) {
-        User user = hibernate.get(User.class, userId);
-        Post post = hibernate.get(Post.class, postId);
-
-        if (user == null || post == null) {
-            Log.info("removeUpVotePost: Invalid input.");
-            throw new WebApplicationException(Status.NOT_FOUND);
-        }
-        if (!user.getPassword().equals(userPassword)) {
-            Log.info("removeUpVotePost: Invalid input.");
-            throw new WebApplicationException(Status.FORBIDDEN);
-        }
-        if (post.getVoteByUser(userId) == null) {
-            Log.info("removeUpVotePost: User has not voted.");
-            throw new WebApplicationException(Status.CONFLICT);
-        }
-
+    private void removeVote(Post post, String userId) {
         post.removeVote(userId);
         hibernate.update(post);
     }
