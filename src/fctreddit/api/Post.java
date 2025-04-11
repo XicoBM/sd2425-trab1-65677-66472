@@ -138,8 +138,9 @@ public class Post {
 
 	/**
 	 * Wanted to create a way of tracking not only the votes of the post but also
-	 * the
-	 * type of vote (up or down) for each user.
+	 * the type of vote (up or down) for each user.
+	 * 
+	 * Should be altered in the near future. We can't have this type of info in volatile memory!
 	 */
 
 	private Map<String, String> userVotes = new HashMap<>();

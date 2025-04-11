@@ -18,9 +18,9 @@ import fctreddit.api.Post;
 import fctreddit.api.java.Result;
 import fctreddit.api.User;
 
-public class ContestResources implements RestContent {
+public class ContentResources implements RestContent {
 
-    private static Logger Log = Logger.getLogger(ContestResources.class.getName());
+    private static Logger Log = Logger.getLogger(ContentResources.class.getName());
     private Hibernate hibernate;
 
     @Override
@@ -205,7 +205,7 @@ public class ContestResources implements RestContent {
             throw new WebApplicationException(Status.FORBIDDEN);
         }
         if (post.getVoteByUser(userId) != null) {
-            Log.info("upVotePost: User has not voted.");
+            Log.info("upVotePost: User has already voted.");
             throw new WebApplicationException(Status.CONFLICT);
         }
 
@@ -263,7 +263,7 @@ public class ContestResources implements RestContent {
             throw new WebApplicationException(Status.FORBIDDEN);
         }
         if (post.getVoteByUser(userId) != null) {
-            Log.info("downVotePost: User has not voted.");
+            Log.info("downVotePost: User has already voted.");
             throw new WebApplicationException(Status.CONFLICT);
         }
 
@@ -307,14 +307,42 @@ public class ContestResources implements RestContent {
 
     @Override
     public Integer getupVotes(String postId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getupVotes'");
+        Log.info("getupVotes called with postId: " + postId);
+        Post post = hibernate.get(Post.class, postId);
+
+        if (post == null) {
+            Log.info("getupVotes: Invalid input.");
+            throw new WebApplicationException(Status.NOT_FOUND);
+        }
+
+        try {
+            Integer votes = post.getUpVote();
+            Log.info(Status.OK + " : upVotes returned by getUpVotes");
+            return votes;
+        } catch (Exception e) {
+            Log.severe("Error retrieving upvotes: " + e.getMessage());
+            throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @Override
     public Integer getDownVotes(String postId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getDownVotes'");
+        Log.info("getDownVotes called with postId: " + postId);
+        Post post = hibernate.get(Post.class, postId);
+
+        if (post == null) {
+            Log.info("getDownVotes: Invalid input");
+            throw new WebApplicationException(Status.NOT_FOUND);
+        }
+
+        try {
+            Integer votes = post.getDownVote();
+            Log.info(Status.OK + " : downVotes return by getDownVotes");
+            return votes;
+        } catch (Exception e) {
+            Log.severe("Error retrieving upvotes: " + e.getMessage());
+            throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
+        }
     }
 
     /*
