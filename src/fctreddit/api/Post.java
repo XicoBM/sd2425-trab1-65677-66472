@@ -3,12 +3,16 @@ package fctreddit.api;
 import java.util.HashMap;
 import java.util.Map;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+
 /**
  * Represents a Post and a Reply in the system
  */
-
+@Entity
 public class Post {
 
+	@Id
 	private String postId;
 	private String authorId;
 	private long creationTimestamp;
@@ -18,6 +22,7 @@ public class Post {
 	private int upVote;
 	private int downVote;
 
+	
 	public Post() {
 
 	}
@@ -134,39 +139,5 @@ public class Post {
 		return "Post [postId=" + postId + ", authorId=" + authorId + ", content=" + content + ", mediaUrl=" + mediaUrl
 				+ ", parentUrl=" + parentUrl + ", creationTimestamp=" + creationTimestamp + ", upVote=" + upVote
 				+ ", downVote=" + downVote + "]";
-	}
-
-	/**
-	 * Wanted to create a way of tracking not only the votes of the post but also
-	 * the type of vote (up or down) for each user.
-	 * 
-	 * Should be altered in the near future. We can't have this type of info in volatile memory!
-	 */
-
-	private Map<String, String> userVotes = new HashMap<>();
-
-	public Map<String, String> getUserVotes() {
-		return userVotes;
-	}
-
-	public void addVote(String userId, String vote) {
-		if (!vote.equals("up") && !vote.equals("down")) {
-			throw new IllegalArgumentException("Vote must be either 'up' or 'down'");
-		}
-
-		userVotes.put(userId, vote);
-		if (vote.equals("up")) {
-			upVote++;
-		} else if (vote.equals("down")) {
-			downVote++;
-		}
-	}
-
-	public void removeVote(String userId) {
-		userVotes.remove(userId);
-	}
-
-	public String getVoteByUser(String userId) {
-		return userVotes.get(userId);
 	}
 }

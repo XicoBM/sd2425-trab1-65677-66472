@@ -17,105 +17,59 @@ import fctreddit.impl.server.persistence.Hibernate;
 import fctreddit.api.Post;
 import fctreddit.api.java.Result;
 import fctreddit.api.User;
+import fctreddit.api.java.Content;
+import fctreddit.impl.server.java.JavaContent;
 
 public class ContentResources implements RestContent {
 
     private static Logger Log = Logger.getLogger(ContentResources.class.getName());
-    private Hibernate hibernate;
+    private static Hibernate hibernate;
+
+    final Content impl;
+
+    public ContentResources() {
+        impl = new JavaContent();
+    }
 
     @Override
     public String createPost(Post post, String userPassword) {
-        Log.info("createPost called with userId: " + post.getAuthorId());
-        User user = hibernate.get(User.class, post.getAuthorId());
-
-        if (post.getAuthorId() == null) {
-            Log.info("createPost: Invalid input.");
-            throw new WebApplicationException(Status.NOT_FOUND);
-        }
-        if (user.getPassword() != userPassword) {
-            Log.info("createPost: Invalid input.");
-            throw new WebApplicationException(Status.FORBIDDEN);
-        }
-
-        try {
-            hibernate.persist(post);
-            Log.info(Status.OK + " : Post created with ID " + post.getPostId());
-            return post.getPostId();
-        } catch (Exception e) {
-            e.printStackTrace();
-            Log.info("createPost: Failed to write post.");
-            throw new WebApplicationException(Status.BAD_REQUEST);
+        Result<String> result = impl.createPost(post, userPassword);
+        if (!result.isOK()) {
+            throw new WebApplicationException(errorCodeToStatus(result.error()));
+        } else {
+            return result.value();
         }
     }
 
     @Override
     public List<String> getPosts(long timestamp, String sortOrder) {
-        Log.info("getPosts called with timestamp: " + timestamp + " and sortOrder: " + sortOrder);
-
-        try {
-            // Recupera todos os posts do banco de dados
-            List<Post> posts = hibernate.jpql("SELECT p FROM Post p WHERE p.parentId IS NULL", Post.class);
-            // Filtra os posts pelo timestamp, se fornecido
-            if (timestamp > 0) {
-                posts = posts.stream()
-                        .filter(post -> post.getCreationTimestamp() >= timestamp)
-                        .toList();
-            }
-            if (sortOrder != null) {
-                switch (sortOrder) {
-                    case "MOST_UP_VOTES":
-                        posts.sort((p1, p2) -> Integer.compare(p2.getUpVote(), p1.getUpVote()));
-                        break;
-                    /*
-                     * case "MOST_REPLIES":
-                     * posts.sort((p1, p2) -> Integer.compare(p2.getReplies().size(),
-                     * p1.getReplies().size()));
-                     * break;
-                     */
-                    default:
-                        Log.warning("Invalid sortOrder: " + sortOrder);
-                        break;
-                }
-            }
-            Log.info(Status.OK + " : Posts retrieved with timestamp " + timestamp);
-            return posts.stream()
-                    .map(Post::getPostId)
-                    .toList();
-        } catch (Exception e) {
-            Log.severe("Error retrieving posts: " + e.getMessage());
-            throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
+        Result<List<String>> result = impl.getPosts(timestamp, sortOrder);
+        if (!result.isOK()) {
+            throw new WebApplicationException(errorCodeToStatus(result.error()));
+        } else {
+            return result.value();
         }
     }
 
     @Override
     public Post getPost(String postId) {
-        Log.info("getPost called with postId: " + postId);
-
         try {
             Post post = hibernate.get(Post.class, postId);
             if (post == null) {
-                Log.info("getPost: Post not found.");
+                Log.warning("getPost: Post not found with ID " + postId);
                 throw new WebApplicationException(Status.NOT_FOUND);
             }
             Log.info(Status.OK + " : Post retrieved with ID " + postId);
             return post;
         } catch (Exception e) {
-            Log.severe("Error retrieving post: " + e.getMessage());
+            Log.severe("Error retrieving post with ID " + postId + ": " + e.getMessage());
             throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
         }
     }
 
     @Override
     public List<String> getPostAnswers(String postId) {
-        Log.info("getPostAnswers called with postId: " + postId);
-
         try {
-            Post post = hibernate.get(Post.class, postId);
-            if (post == null) {
-                Log.info("getPostAnswers: Post not found.");
-                throw new WebApplicationException(Status.NOT_FOUND);
-            }
-
             TypedQuery<Post> query = hibernate.jpql2("SELECT p FROM Post p WHERE p.parentId = :parentId", Post.class);
             query.setParameter("parentId", postId);
             List<Post> answers = query.getResultList();
@@ -123,7 +77,6 @@ public class ContentResources implements RestContent {
             return answers.stream()
                     .map(Post::getPostId)
                     .toList();
-
         } catch (Exception e) {
             Log.severe("Error retrieving post answers: " + e.getMessage());
             throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
@@ -132,34 +85,20 @@ public class ContentResources implements RestContent {
 
     @Override
     public Post updatePost(String postId, String userPassword, Post post) {
-        Log.info("updatePost called with postId: " + postId + " and userPassword: " + userPassword);
-
-        User user = hibernate.get(User.class, post.getAuthorId());
-
-        if (user.getPassword() != userPassword) {
-            Log.info("updatePost: Invalid input.");
-            throw new WebApplicationException(Status.FORBIDDEN);
-        }
         try {
             Post existingPost = hibernate.get(Post.class, postId);
-            if (existingPost == null) {
-                Log.info("updatePost: Post not found.");
-                throw new WebApplicationException(Status.NOT_FOUND);
-            }
-
             if (post.getContent() != null) {
                 existingPost.setContent(post.getContent());
             }
             if (post.getMediaUrl() != null) {
                 existingPost.setMediaUrl(post.getMediaUrl());
             }
-
             hibernate.update(existingPost);
             Log.info(Status.OK + " : Post updated with ID " + postId);
             return existingPost;
         } catch (Exception e) {
-            Log.severe("Error updating post: " + e.getMessage());
-            throw new WebApplicationException(Status.BAD_REQUEST);
+            Log.severe("Error updating post with ID " + postId + ": " + e.getMessage());
+            throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -167,26 +106,14 @@ public class ContentResources implements RestContent {
     public void deletePost(String postId, String userPassword) {
         Log.info("deletePost called with postId: " + postId + " and userPassword: " + userPassword);
 
-        Post post = hibernate.get(Post.class, postId);
-        if (post == null) {
-            Log.info("deletePost: Post not found.");
-            throw new WebApplicationException(Status.NOT_FOUND);
-        }
-
-        User user = hibernate.get(User.class, post.getAuthorId());
-        if (user.getPassword() != userPassword) {
-            Log.info("deletePost: Invalid input.");
-            throw new WebApplicationException(Status.FORBIDDEN);
-        }
-
         try {
+            Post post = hibernate.get(Post.class, postId);
             hibernate.delete(post);
-            Log.info(Status.NO_CONTENT.toString());
+            Log.info(Status.NO_CONTENT + " : Post deleted with ID " + postId);
         } catch (Exception e) {
-            Log.severe("Error deleting post: " + e.getMessage());
-            throw new WebApplicationException(Status.BAD_REQUEST);
+            Log.severe("Error deleting post with ID " + postId + ": " + e.getMessage());
+            throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
         }
-
     }
 
     @Override
@@ -351,5 +278,17 @@ public class ContentResources implements RestContent {
     private void removeVote(Post post, String userId) {
         post.removeVote(userId);
         hibernate.update(post);
+    }
+
+    protected static Status errorCodeToStatus(Result.ErrorCode errorCode) {
+        Status status = switch (errorCode) {
+            case NOT_FOUND -> Status.NOT_FOUND;
+            case CONFLICT -> Status.CONFLICT;
+            case FORBIDDEN -> Status.FORBIDDEN;
+            case NOT_IMPLEMENTED -> Status.NOT_IMPLEMENTED;
+            case BAD_REQUEST -> Status.BAD_REQUEST;
+            default -> Status.INTERNAL_SERVER_ERROR;
+        };
+        return status;
     }
 }

@@ -133,8 +133,7 @@ public class Hibernate {
 	}
 
 	public <T> TypedQuery<T> jpql2(String jpqlstatement, Class<T> clazz) {
-		try {
-			var session = sessionFactory.openSession();
+		try (var session = sessionFactory.openSession()) {
 			return session.createQuery(jpqlstatement, clazz);
 		} catch (Exception e) {
 			throw e;
