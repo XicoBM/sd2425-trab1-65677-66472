@@ -1,5 +1,6 @@
 package fctreddit.impl.server.java;
 
+import java.io.File;
 import java.util.logging.Logger;
 
 import fctreddit.api.User;
@@ -12,12 +13,14 @@ import fctreddit.impl.server.persistence.Hibernate;
 public class JavaImage implements Image {
 
     private static Logger Log = Logger.getLogger(JavaUsers.class.getName());
-
-    private ImagesResources imagesResources;
+    private static final String IMAGE_URI = "imageFiles";
     private Hibernate hibernate;
 
     public JavaImage() {
-        imagesResources = new ImagesResources();
+        File dir = new File(IMAGE_URI);
+        if (!dir.exists()) {
+            dir.mkdir();
+        }
     }
 
     @Override
@@ -39,10 +42,16 @@ public class JavaImage implements Image {
         }
 
         try {
-            String imageUri = imagesResources.createImage(userId, imageContents, password);
-            return Result.ok(imageUri);
+            String imageId = String.valueOf(System.currentTimeMillis());
+            String imagePath = IMAGE_URI + File.separator + imageId + ".png";
+            File imageFile = new File(imagePath);
+            if (!imageFile.exists()) {
+                imageFile.createNewFile();
+            }
+            java.nio.file.Files.write(imageFile.toPath(), imageContents);
+            return Result.ok(imagePath);
         } catch (Exception e) {
-            e.printStackTrace(); // Most likely the exception is due to the user already existing...
+            e.printStackTrace(); 
             Log.info("Image already exists.");
             return Result.error(ErrorCode.CONFLICT);
         }

@@ -12,18 +12,15 @@ import jakarta.ws.rs.core.Response.Status;
 
 import fctreddit.api.rest.RestImage;
 import fctreddit.api.java.Result;
+import fctreddit.impl.server.java.JavaImage;
 
 public class ImagesResources implements RestImage {
 
     private static Logger Log = Logger.getLogger(ImagesResources.class.getName());
-    private static final String IMAGE_DIRECTORY = "imageFiles";
-
+    
     public ImagesResources() {
-        File dir = new File(IMAGE_DIRECTORY);
-        if (!dir.exists()) {
-            dir.mkdir();
-        }
-    }
+        JavaImage impl = new JavaImage();
+    } 
 
     @Override
     public String createImage(String userId, byte[] imageContents, String password) {
