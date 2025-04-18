@@ -14,83 +14,60 @@ import fctreddit.impl.server.java.JavaUsers;
 
 public class UsersResources implements RestUsers {
 
-	private static Logger Log = Logger.getLogger(UsersResources.class.getName());
+    private static Logger Log = Logger.getLogger(UsersResources.class.getName());
 
-	final Users impl;
+    final Users impl;
 
-	public UsersResources() {
-		impl = new JavaUsers();
-	}
+    public UsersResources() {
+        impl = new JavaUsers();
+    }
 
-	@Override
-	public String createUser(User user) {
-		Log.info("createUser: " + user);
+    @Override
+    public String createUser(User user) {
+        Log.info("createUser: " + user);
+        return handleResult(impl.createUser(user), "Failed to create user");
+    }
 
-		Result<String> result = impl.createUser(user);
-		if (!result.isOK()) {
-			throw new WebApplicationException(errorCodeToStatus(result.error()));
-		} else {
-			return result.value();
-		}
-	}
+    @Override
+    public User getUser(String userId, String password) {
+        Log.info("getUser : user = " + userId + "; password = [PROTECTED]");
+        return handleResult(impl.getUser(userId, password), "Failed to retrieve user with ID: " + userId);
+    }
 
-	@Override
-	public User getUser(String userId, String password) {
-		Log.info("getUser : user = " + userId + "; password = " + password);
+    @Override
+    public User updateUser(String userId, String password, User user) {
+        Log.info("updateUser : user = " + userId + "; pwd = [PROTECTED] ; userData = " + user);
+        return handleResult(impl.updateUser(userId, password, user), "Failed to update user with ID: " + userId);
+    }
 
-		Result<User> result = impl.getUser(userId, password);
-		if (!result.isOK()) {
-			throw new WebApplicationException(errorCodeToStatus(result.error()));
-		} else {
-			return result.value();
-		}
-	}
+    @Override
+    public User deleteUser(String userId, String password) {
+        Log.info("deleteUser : user = " + userId + "; pwd = [PROTECTED]");
+        return handleResult(impl.deleteUser(userId, password), "Failed to delete user with ID: " + userId);
+    }
 
-	@Override
-	public User updateUser(String userId, String password, User user) {
-		Log.info("updateUser : user = " + userId + "; pwd = " + password + " ; userData = " + user);
+    @Override
+    public List<User> searchUsers(String pattern) {
+        Log.info("searchUsers : pattern = " + pattern);
+        return handleResult(impl.searchUsers(pattern), "Failed to search users with pattern: " + pattern);
+    }
 
-		Result<User> result = impl.updateUser(userId, password, user);
-		if (!result.isOK()) {
-			throw new WebApplicationException(errorCodeToStatus(result.error()));
-		} else {
-			return result.value();
-		}
-	}
+    private <T> T handleResult(Result<T> result, String errorMessage) {
+        if (!result.isOK()) {
+            Log.severe(errorMessage + ": " + result.error());
+            throw new WebApplicationException(errorMessage, errorCodeToStatus(result.error()));
+        }
+        return result.value();
+    }
 
-	@Override
-	public User deleteUser(String userId, String password) {
-		Log.info("deleteUser : user = " + userId + "; pwd = " + password);
-
-		Result<User> result = impl.deleteUser(userId, password);
-		if (!result.isOK()) {
-			throw new WebApplicationException(errorCodeToStatus(result.error()));
-		} else {
-			return result.value();
-		}
-	}
-
-	@Override
-	public List<User> searchUsers(String pattern) {
-		Log.info("searchUsers : pattern = " + pattern);
-
-		Result<List<User>> result = impl.searchUsers(pattern);
-		if (!result.isOK()) {
-			throw new WebApplicationException(errorCodeToStatus(result.error()));
-		} else {
-			return result.value();
-		}
-	}
-
-	protected static Status errorCodeToStatus(Result.ErrorCode errorCode) {
-		Status status = switch (errorCode) {
-			case NOT_FOUND -> Status.NOT_FOUND;
-			case CONFLICT -> Status.CONFLICT;
-			case FORBIDDEN -> Status.FORBIDDEN;
-			case NOT_IMPLEMENTED -> Status.NOT_IMPLEMENTED;
-			case BAD_REQUEST -> Status.BAD_REQUEST;
-			default -> Status.INTERNAL_SERVER_ERROR;
-		};
-		return status;
-	}
+    protected static Status errorCodeToStatus(Result.ErrorCode errorCode) {
+        return switch (errorCode) {
+            case NOT_FOUND -> Status.NOT_FOUND;
+            case CONFLICT -> Status.CONFLICT;
+            case FORBIDDEN -> Status.FORBIDDEN;
+            case NOT_IMPLEMENTED -> Status.NOT_IMPLEMENTED;
+            case BAD_REQUEST -> Status.BAD_REQUEST;
+            default -> Status.INTERNAL_SERVER_ERROR;
+        };
+    }
 }

@@ -7,8 +7,12 @@ import fctreddit.api.User;
 import fctreddit.api.java.Image;
 import fctreddit.api.java.Result;
 import fctreddit.api.java.Result.ErrorCode;
-import fctreddit.impl.server.rest.ImagesResources;
 import fctreddit.impl.server.persistence.Hibernate;
+
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.Files;
+import java.io.IOException;
 
 public class JavaImage implements Image {
 
@@ -65,12 +69,18 @@ public class JavaImage implements Image {
             Log.info("UserId or imageId null.");
             return Result.error(ErrorCode.BAD_REQUEST);
         }
-        byte[] image = imagesResources.getImage(userId, imageId);
-        if (image == null) {
-            Log.info("Image does not exist.");
-            return Result.error(ErrorCode.NOT_FOUND);
+        byte[] image;
+        try {
+            image = getImage(imageId);
+            if (image == null) {
+                Log.info("Image not found.");
+                return Result.error(ErrorCode.NOT_FOUND);
+            }
+            return Result.ok(image);
+        } catch (Exception e) {
+            Log.info("Image not found.");
+            return Result.error(ErrorCode.BAD_REQUEST);
         }
-        return Result.ok(image); 
     }
 
     @Override
@@ -90,14 +100,28 @@ public class JavaImage implements Image {
             Log.info("UserId or password incorrect.");
             return Result.error(ErrorCode.FORBIDDEN);
         }
-
         try {
-            imagesResources.deleteImage(userId, imageId, password);
-            return Result.ok(null);
+            Path image = Paths.get(IMAGE_URI, imageId + ".png");
+            Files.delete(image);
+            return Result.ok();
         } catch (Exception e) {
-            e.printStackTrace(); // Most likely the exception is due to the user already existing...
+            e.printStackTrace(); 
             Log.info("Image already exists.");
-            return Result.error(ErrorCode.CONFLICT);
+            return Result.error(ErrorCode.BAD_REQUEST);
+        }
+    }
+
+    private static byte[] getImage(String imageId) throws IOException {
+        Path imagePath = Paths.get(IMAGE_URI, imageId + ".png");
+
+        if (!Files.exists(imagePath)) {
+            return null;
+        }
+        try {
+            return Files.readAllBytes(imagePath);
+        } catch (IOException e) {
+            Log.severe("getImage: Failed to read image.");
+            throw new IOException("Failed to read image", e);
         }
     }
 }

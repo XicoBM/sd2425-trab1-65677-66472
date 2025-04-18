@@ -1,11 +1,6 @@
 package fctreddit.impl.server.rest;
 
 import java.util.logging.Logger;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.Files;
 
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response.Status;
@@ -13,73 +8,42 @@ import jakarta.ws.rs.core.Response.Status;
 import fctreddit.api.rest.RestImage;
 import fctreddit.api.java.Result;
 import fctreddit.impl.server.java.JavaImage;
+import fctreddit.api.java.Image;
 
 public class ImagesResources implements RestImage {
 
     private static Logger Log = Logger.getLogger(ImagesResources.class.getName());
+
+    final Image impl;
     
     public ImagesResources() {
-        JavaImage impl = new JavaImage();
+        this.impl = new JavaImage();
     } 
 
     @Override
     public String createImage(String userId, byte[] imageContents, String password) {
         Log.info("createImage called with userId: " + userId);
-
-        if (imageContents.length == 0) {
-            Log.info("createImage: Invalid input.");
-            throw new WebApplicationException(Status.BAD_REQUEST);
-        }
-
-        String imageId = String.valueOf(System.currentTimeMillis());
-        Path imagePath = Paths.get(IMAGE_DIRECTORY, imageId + ".png");
-
-        try {
-            Files.write(imagePath, imageContents);
-            Log.info("createImage: Image created with ID " + imageId);
-            return imagePath.toUri().toString();
-        } catch (IOException e) {
-            Log.severe("createImage: Failed to write image.");
-            throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
-        }
+        return handleResult(impl.createImage(userId, imageContents, password), "Failed to create image");
     }
 
     @Override
     public byte[] getImage(String userId, String imageId) {
         Log.info("getImage called with userId: " + userId + " and imageId: " + imageId);
-
-        Path imagePath = Paths.get(IMAGE_DIRECTORY, imageId + ".png");
-
-        if (!Files.exists(imagePath)) {
-            Log.info("getImage: Image not found.");
-            throw new WebApplicationException(Status.NOT_FOUND);
-        }
-
-        try {
-            return Files.readAllBytes(imagePath);
-        } catch (IOException e) {
-            Log.severe("getImage: Failed to read image.");
-            throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
-        }
+        return handleResult(impl.getImage(userId, imageId), "Failed to retrieve image with ID: " + imageId);
     }
 
     @Override
     public void deleteImage(String userId, String imageId, String password) {
         Log.info("deleteImage called with userId: " + userId + " and imageId: " + imageId);
+        handleResult(impl.deleteImage(userId, imageId, password), "Failed to delete image with ID: " + imageId);
+    }
 
-        Path imagePath = Paths.get(IMAGE_DIRECTORY, imageId + ".png");
-
-        try {
-            if (Files.deleteIfExists(imagePath)) {
-                Log.info("deleteImage: Image deleted with ID " + imageId);
-            } else {
-                Log.info("deleteImage: Image not found.");
-                throw new WebApplicationException(Status.NOT_FOUND);
-            }
-        } catch (IOException e) {
-            Log.severe("deleteImage: Failed to delete image.");
-            throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
+    private <T> T handleResult(Result<T> result, String errorMessage) {
+        if (!result.isOK()) {
+            Log.severe(errorMessage + ": " + result.error());
+            throw new WebApplicationException(errorMessage, errorCodeToStatus(result.error()));
         }
+        return result.value();
     }
 
     protected static Status errorCodeToStatus(Result.ErrorCode errorCode) {
