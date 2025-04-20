@@ -7,6 +7,8 @@ import java.net.InetAddress;
 import org.glassfish.jersey.jdkhttp.JdkHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
+import fctreddit.impl.server.discovery.Discovery;
+
 public class ImagesServer {
     private static Logger Log = Logger.getLogger(ImagesServer.class.getName());
 
@@ -16,7 +18,7 @@ public class ImagesServer {
     }
 
     public static final int PORT = 8081;
-    public static final String SERVICE = "ImagesService";
+    public static final String SERVICE = "Images";
     private static final String SERVER_URI_FMT = "http://%s:%s/rest";
 
     public static void main(String[] args) {
@@ -27,6 +29,9 @@ public class ImagesServer {
             String ip = InetAddress.getLocalHost().getHostAddress();
             String serverURI = String.format(SERVER_URI_FMT, ip, PORT);
             JdkHttpServerFactory.createHttpServer(URI.create(serverURI), config);
+
+            Discovery discovery = new Discovery(Discovery.DISCOVERY_ADDR, SERVICE, serverURI);
+            discovery.start();
 
             Log.info(String.format("%s Server ready @ %s\n", SERVICE, serverURI));
 

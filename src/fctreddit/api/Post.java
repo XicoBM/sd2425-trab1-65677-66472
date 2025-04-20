@@ -1,8 +1,5 @@
 package fctreddit.api;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 
