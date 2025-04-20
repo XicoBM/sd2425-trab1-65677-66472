@@ -75,21 +75,106 @@ public class JavaUsers implements Users {
 
     }
 
-    @Override
-    public Result<User> updateUser(String userId, String password, User user) {
-        // TODO Auto-generated method stub
-        return null;
+        @Override
+    public Result<User> updateUser(String userId, String password, User updatedUser) {
+        Log.info("updateUser : " + userId);
+
+        if (userId == null || password == null || updatedUser == null) {
+            Log.info("Missing parameters.");
+            return Result.error(ErrorCode.BAD_REQUEST);
+        }
+
+        User existingUser;
+        try {
+            existingUser = hibernate.get(User.class, userId);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error(ErrorCode.INTERNAL_ERROR);
+        }
+
+        if (existingUser == null) {
+            Log.info("User not found.");
+            return Result.error(ErrorCode.NOT_FOUND);
+        }
+
+        if (!existingUser.getPassword().equals(password)) {
+            Log.info("Incorrect password.");
+            return Result.error(ErrorCode.FORBIDDEN);
+        }
+
+       
+		if (updatedUser.getFullName() != null) {
+			existingUser.setFullName(updatedUser.getFullName());
+		}
+		if (updatedUser.getEmail() != null) {
+			existingUser.setEmail(updatedUser.getEmail());
+		}
+		if (updatedUser.getPassword() != null) {
+			existingUser.setPassword(updatedUser.getPassword());
+		}
+
+        try {
+            hibernate.update(existingUser);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error(ErrorCode.INTERNAL_ERROR);
+        }
+
+        return Result.ok(existingUser);
     }
 
     @Override
     public Result<User> deleteUser(String userId, String password) {
-        // TODO Auto-generated method stub
-        return null;
+        Log.info("deleteUser : " + userId);
+
+        if (userId == null || password == null) {
+            Log.info("Missing userId or password.");
+            return Result.error(ErrorCode.BAD_REQUEST);
+        }
+
+        User user;
+        try {
+            user = hibernate.get(User.class, userId);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error(ErrorCode.INTERNAL_ERROR);
+        }
+
+        if (user == null) {
+            Log.info("User not found.");
+            return Result.error(ErrorCode.NOT_FOUND);
+        }
+
+        if (!user.getPassword().equals(password)) {
+            Log.info("Incorrect password.");
+            return Result.error(ErrorCode.FORBIDDEN);
+        }
+
+        try {
+            hibernate.delete(user);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error(ErrorCode.INTERNAL_ERROR);
+        }
+
+        return Result.ok(user);
     }
 
     @Override
     public Result<List<User>> searchUsers(String pattern) {
-        // TODO Auto-generated method stub
-        return null;
+        Log.info("searchUsers : " + pattern);
+
+        if (pattern == null || pattern.isEmpty()) {
+            Log.info("Empty search pattern.");
+            return Result.error(ErrorCode.BAD_REQUEST);
+        }
+
+        try {
+			List<User> users = hibernate.jpql("SELECT u FROM User u WHERE u.userId LIKE '%" + pattern +"%'", User.class);
+            return Result.ok(users);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error(ErrorCode.INTERNAL_ERROR);
+        }
     }
 }

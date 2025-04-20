@@ -1,6 +1,5 @@
 package fctreddit.impl.server.rest;
 
-import java.net.InetAddress;
 import java.net.URI;
 import java.util.logging.Logger;
 
@@ -23,23 +22,18 @@ public class UsersServer {
 
     public static void main(String[] args) {
         try {
-            // Configuração do servidor REST
             ResourceConfig config = new ResourceConfig();
             config.register(UsersResources.class);
 
-            // Inicialização do servidor
-            String ip = InetAddress.getLocalHost().getHostAddress();
+            String ip = Discovery.getSiteLocalAddress().getHostAddress();
             String serverURI = String.format(SERVER_URI_FMT, ip, PORT);
             JdkHttpServerFactory.createHttpServer(URI.create(serverURI), config);
 
-            // Registro no serviço de descoberta
             Discovery discovery = new Discovery(Discovery.DISCOVERY_ADDR, SERVICE, serverURI);
             discovery.start();
 
             Log.info(String.format("%s Server ready @ %s\n", SERVICE, serverURI));
 
-            // Manter o servidor ativo
-            Thread.currentThread().join();
         } catch (Exception e) {
             Log.severe("Error starting UsersServer: " + e.getMessage());
         }

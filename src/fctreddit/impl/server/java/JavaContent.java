@@ -26,8 +26,9 @@ public class JavaContent implements Content {
     private Hibernate hibernate;
 
     public JavaContent() {
+        hibernate = Hibernate.getInstance();
         contentResources = new ContentResources();
-    }
+        }
 
     @Override
     public Result<String> createPost(Post post, String userPassword) {
