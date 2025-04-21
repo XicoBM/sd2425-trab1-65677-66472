@@ -162,7 +162,13 @@ public class JavaContent implements Content {
             Log.info("deletePost: Cannot delete post with votes.");
             return Result.error(ErrorCode.CONFLICT);
         }
-        contentResources.deletePost(postId, userPassword);
+        hibernate.delete(post);
+        TypedQuery<Post> query = hibernate.jpql2("SELECT p FROM Post p WHERE p.parentId = :parentId", Post.class);
+        query.setParameter("parentId", postId);
+        List<Post> posts = query.getResultList();
+        for (Post p : posts) {
+            hibernate.delete(p);
+        }
         Log.info("deletePost: Deleted post with ID " + postId);
         return Result.ok();
     }
