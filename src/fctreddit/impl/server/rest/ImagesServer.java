@@ -20,7 +20,7 @@ public class ImagesServer {
     }
 
     public static final int PORT = 8082;
-    public static final String SERVICE = "Images";
+    public static final String SERVICE = "Image";
     private static final String SERVER_URI_FMT = "http://%s:%s/rest";
 
     public static void main(String[] args) {
@@ -28,7 +28,7 @@ public class ImagesServer {
             String ip = InetAddress.getLocalHost().getHostAddress();
 
             ResourceConfig config = new ResourceConfig();
-            config.register(new ImagesResources());
+            config.register(ImagesResources.class);
 
             String serverURI = String.format(SERVER_URI_FMT, ip, PORT);
             JdkHttpServerFactory.createHttpServer(URI.create(serverURI), config);
@@ -36,6 +36,7 @@ public class ImagesServer {
             Log.info(String.format("%s Server ready @ %s\n", SERVICE, serverURI));
 
             Discovery.getInstance().start(DISCOVERY_ADDR, SERVICE, serverURI);
+            Thread.currentThread().join();
         } catch (Exception e) {
             Log.severe(e.getMessage());
         }

@@ -18,7 +18,7 @@ public class Discovery {
         System.setProperty("java.util.logging.SimpleFormatter.format", "%4$s: %5$s");
     }
 
-    static final InetSocketAddress DISCOVERY_ADDR = new InetSocketAddress("226.226.226.226", 2266);
+    static final InetSocketAddress DISCOVERY_ADDR = new InetSocketAddress("230.0.0.1", 4446); // IP e porta mais comuns para multicast
     static final int DISCOVERY_PERIOD = 1000;
     static final int DISCOVERY_TIMEOUT = 5000;
     private static final String DELIMITER = "\t";
@@ -44,16 +44,18 @@ public class Discovery {
 
         try {
             MulticastSocket ms = new MulticastSocket(addr.getPort());
+            
+            // Exibe as interfaces de rede disponíveis para multicast
             for (NetworkInterface ni : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-				if (ni.isUp() && !ni.isLoopback() && ni.supportsMulticast()) {
-					try {
-						ms.joinGroup(new InetSocketAddress(addr.getAddress(), 0), ni);
-					} catch (Exception e) {
-						Log.warning("Could not join group on interface " + ni.getName() + ": " + e.getMessage());
-					}
-				}
-			}
-			
+                System.out.println("Interface: " + ni.getName() + " up=" + ni.isUp() + " multicast=" + ni.supportsMulticast());
+                if (ni.isUp() && !ni.isLoopback() && ni.supportsMulticast()) {
+                    try {
+                        ms.joinGroup(new InetSocketAddress(addr.getAddress(), 0), ni);
+                    } catch (Exception e) {
+                        Log.warning("Could not join group on interface " + ni.getName() + ": " + e.getMessage());
+                    }
+                }
+            }
 
             // Thread para enviar anúncios
             new Thread(() -> {
@@ -98,5 +100,23 @@ public class Discovery {
 
     public List<String> knownUrisOf(String serviceName) {
         return new ArrayList<>(uris.getOrDefault(serviceName, Collections.emptySet()));
+    }
+
+    public static void main(String[] args) {
+        // Teste simples
+        Discovery discovery = Discovery.getInstance();
+        discovery.start(DISCOVERY_ADDR, "TestService", "http://localhost/test");
+
+        // Simula um tempo de execução para enviar e receber pacotes
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        // Exibe as URIs conhecidas
+        System.out.println("Known URIs for 'TestService': " + discovery.knownUrisOf("TestService"));
+
+        discovery.stop();
     }
 }

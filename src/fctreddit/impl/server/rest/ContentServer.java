@@ -8,6 +8,7 @@ import java.net.InetSocketAddress;
 import org.glassfish.jersey.jdkhttp.JdkHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
+import fctreddit.api.java.Content;
 import fctreddit.impl.server.discovery.Discovery;
 
 public class ContentServer {
@@ -21,14 +22,14 @@ public class ContentServer {
     }
 
     public static final int PORT = 8081;
-    public static final String SERVICE = "Posts";
+    public static final String SERVICE = "Content";
 
     public static void main(String[] args) {
         try {
             String ip = InetAddress.getLocalHost().getHostAddress();
 
             ResourceConfig config = new ResourceConfig();
-            config.register(new ContentResources());
+            config.register(ContentResources.class);
 
             String serverURI = String.format(SERVER_URI_FMT, ip, PORT);
             URI uri = URI.create(serverURI);
@@ -37,6 +38,7 @@ public class ContentServer {
             Log.info(String.format("%s Server ready @ %s\n", SERVICE, serverURI));
 
             Discovery.getInstance().start(DISCOVERY_ADDR, SERVICE, serverURI);
+            Thread.currentThread().join();
         } catch (Exception e) {
             Log.severe(e.getMessage());
         }
