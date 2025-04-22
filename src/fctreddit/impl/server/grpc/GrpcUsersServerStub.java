@@ -1,4 +1,3 @@
-/*
 package fctreddit.impl.server.grpc;
 
 import java.util.List;
@@ -92,4 +91,4 @@ public class GrpcUsersServerStub implements UsersGrpc.AsyncService, BindableServ
         return status.asException();
     }
 }
-*/
+
