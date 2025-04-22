@@ -1,12 +1,12 @@
-USERS_REST_SERVER_MAINCLASS=src.fctreddit.impl.server.rest.UsersServer
+USERS_REST_SERVER_MAINCLASS=fctreddit/impl/server/rest/UsersServer
 USERS_REST_PORT=8080
 USERS_REST_EXTRA_ARGS=
 
-CONTENT_REST_SERVER_MAINCLASS=src.fctreddit.impl.server.rest.ContentServer
+CONTENT_REST_SERVER_MAINCLASS=fctreddit/impl/server/rest/ContentServer
 CONTENT_REST_PORT=8081
 CONTENT_REST_EXTRA_ARGS=
 
-IMAGE_REST_SERVER_MAINCLASS=src.fctreddit.impl.server.rest.ImageServer
+IMAGE_REST_SERVER_MAINCLASS=fctreddit/impl/server/rest/ImagesServer
 IMAGE_REST_PORT=8082
 IMAGE_REST_EXTRA_ARGS=
 

@@ -10,13 +10,13 @@ import fctreddit.api.java.Result;
 import fctreddit.impl.server.java.JavaImage;
 import fctreddit.api.java.Image;
 
-public class ImageResources implements RestImage {
+public class ImagesResources implements RestImage {
 
-    private static Logger Log = Logger.getLogger(ImageResources.class.getName());
+    private static Logger Log = Logger.getLogger(ImagesResources.class.getName());
 
     final Image impl;
     
-    public ImageResources() {
+    public ImagesResources() {
         this.impl = new JavaImage();
     } 
 

@@ -10,8 +10,8 @@ import org.glassfish.jersey.server.ResourceConfig;
 
 import fctreddit.impl.server.discovery.Discovery;
 
-public class ImageServer {
-    private static Logger Log = Logger.getLogger(ImageServer.class.getName());
+public class ImagesServer {
+    private static Logger Log = Logger.getLogger(ImagesServer.class.getName());
     static final InetSocketAddress DISCOVERY_ADDR = new InetSocketAddress("226.226.226.226", 2266);
 
     static {
@@ -28,7 +28,7 @@ public class ImageServer {
             String ip = InetAddress.getLocalHost().getHostAddress();
 
             ResourceConfig config = new ResourceConfig();
-            config.register(new ImageResources());
+            config.register(new ImagesResources());
 
             String serverURI = String.format(SERVER_URI_FMT, ip, PORT);
             JdkHttpServerFactory.createHttpServer(URI.create(serverURI), config);

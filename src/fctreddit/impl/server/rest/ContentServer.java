@@ -31,7 +31,8 @@ public class ContentServer {
             config.register(new ContentResources());
 
             String serverURI = String.format(SERVER_URI_FMT, ip, PORT);
-            JdkHttpServerFactory.createHttpServer(URI.create(serverURI), config);
+            URI uri = URI.create(serverURI);
+            JdkHttpServerFactory.createHttpServer(uri, config);
 
             Log.info(String.format("%s Server ready @ %s\n", SERVICE, serverURI));
 
