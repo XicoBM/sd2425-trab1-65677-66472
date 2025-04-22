@@ -3,6 +3,7 @@ package fctreddit.impl.server.rest;
 import java.util.logging.Logger;
 import java.net.URI;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 
 import org.glassfish.jersey.jdkhttp.JdkHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -11,6 +12,7 @@ import fctreddit.impl.server.discovery.Discovery;
 
 public class ImageServer {
     private static Logger Log = Logger.getLogger(ImageServer.class.getName());
+    static final InetSocketAddress DISCOVERY_ADDR = new InetSocketAddress("226.226.226.226", 2266);
 
     static {
         System.setProperty("java.net.preferIPv4Stack", "true");
@@ -18,23 +20,22 @@ public class ImageServer {
     }
 
     public static final int PORT = 8082;
-    public static final String SERVICE = "Image";
+    public static final String SERVICE = "Images";
     private static final String SERVER_URI_FMT = "http://%s:%s/rest";
 
     public static void main(String[] args) {
         try {
-            ResourceConfig config = new ResourceConfig();
-            config.register(ImageResources.class);
-
             String ip = InetAddress.getLocalHost().getHostAddress();
+
+            ResourceConfig config = new ResourceConfig();
+            config.register(new ImageResources());
+
             String serverURI = String.format(SERVER_URI_FMT, ip, PORT);
             JdkHttpServerFactory.createHttpServer(URI.create(serverURI), config);
 
-            Discovery discovery = new Discovery(Discovery.DISCOVERY_ADDR, SERVICE, serverURI);
-            discovery.start();
-
             Log.info(String.format("%s Server ready @ %s\n", SERVICE, serverURI));
 
+            Discovery.getInstance().start(DISCOVERY_ADDR, SERVICE, serverURI);
         } catch (Exception e) {
             Log.severe(e.getMessage());
         }
