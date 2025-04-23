@@ -60,7 +60,7 @@ public class JavaContent implements Content {
         Log.info("getPosts called with timestamp: " + timestamp + " and sortOrder: " + sortOrder);
 
         try {
-            String query = "SELECT p.postId FROM Post p WHERE p.parentId IS NULL";
+            String query = "SELECT p.postId FROM Post p WHERE p.parentUrl IS NULL";
 
             if (timestamp > 0) {
                 query += " AND p.creationTimestamp >= :timestamp";
@@ -108,9 +108,9 @@ public class JavaContent implements Content {
             Log.info("getPostAnswers: Post not found.");
             return Result.error(ErrorCode.NOT_FOUND);
         }
-        TypedQuery<String> query = hibernate.jpql2("SELECT p.postId FROM Post p WHERE p.parentId = :parentId",
+        TypedQuery<String> query = hibernate.jpql2("SELECT p.postId FROM Post p WHERE p.parentUrl = :parentUrl",
                 String.class);
-        List<String> res = query.setParameter("parentId", postId).getResultList();
+        List<String> res = query.setParameter("parentUrl", postId).getResultList();
         return Result.ok(res);
     }
 
@@ -123,6 +123,15 @@ public class JavaContent implements Content {
         if (!user.getPassword().equals(userPassword)) {
             Log.info("updatePost: Invalid password.");
             return Result.error(ErrorCode.FORBIDDEN);
+        }
+        if (existingPost.getUpVote() > 0 || existingPost.getDownVote() > 0) {
+            Log.info("updatePost: Post has votes. Update not allowed.");
+            return Result.error(ErrorCode.BAD_REQUEST);
+        }
+        Result<List<String>> answersResult = getPostAnswers(postId, 0);
+        if (answersResult.isOK() && !answersResult.value().isEmpty()) {
+            Log.info("updatePost: Post has answers. Update not allowed.");
+            return Result.error(ErrorCode.CONFLICT);
         }
         try {
             if (post.getContent() != null) {
@@ -155,7 +164,7 @@ public class JavaContent implements Content {
             Log.info("deletePost: Invalid password.");
             return Result.error(ErrorCode.FORBIDDEN);
         }
-        List<String> postIds = hibernate.jpql("SELECT p.postId FROM Post p WHERE p.parentId = :parentId", String.class);
+        List<String> postIds = hibernate.jpql("SELECT p.postId FROM Post p WHERE p.parentUrl = :parentUrl", String.class);
         for (String ids : postIds) {
             Post var = contentResources.getPost(ids);
             if (var.getParentUrl() == post.getMediaUrl()) {
@@ -168,8 +177,8 @@ public class JavaContent implements Content {
             return Result.error(ErrorCode.CONFLICT);
         }
         hibernate.delete(post);
-        TypedQuery<Post> query = hibernate.jpql2("SELECT p FROM Post p WHERE p.parentId = :parentId", Post.class);
-        query.setParameter("parentId", postId);
+        TypedQuery<Post> query = hibernate.jpql2("SELECT p FROM Post p WHERE p.parentUrl = :parentUrl", Post.class);
+        query.setParameter("parentUrl", postId);
         List<Post> posts = query.getResultList();
         for (Post p : posts) {
             hibernate.delete(p);
