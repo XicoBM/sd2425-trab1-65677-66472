@@ -125,8 +125,13 @@ public class JavaContent implements Content {
             return Result.error(ErrorCode.FORBIDDEN);
         }
         try {
-            hibernate.delete(existingPost);
-            hibernate.persist(post);
+            if (post.getContent() != null) {
+                existingPost.setContent(post.getContent());
+            }
+            if (post.getMediaUrl() != null) {
+                existingPost.setMediaUrl(post.getMediaUrl());
+            }
+            hibernate.update(existingPost);
             Log.info("updatePost: Updated post with ID " + postId);
             return Result.ok();
         } catch (Exception e) {

@@ -23,7 +23,6 @@ public class JavaUsers implements Users {
     public Result<String> createUser(User user) {
         Log.info("createUser : " + user);
 
-        // Check if user data is valid
         if (user.getUserId() == null || user.getPassword() == null || user.getFullName() == null
                 || user.getEmail() == null) {
             Log.info("User object invalid.");
@@ -33,7 +32,7 @@ public class JavaUsers implements Users {
         try {
             hibernate.persist(user);
         } catch (Exception e) {
-            e.printStackTrace(); // Most likely the exception is due to the user already existing...
+            e.printStackTrace(); 
             Log.info("User already exists.");
             return Result.error(ErrorCode.CONFLICT);
         }
@@ -112,6 +111,9 @@ public class JavaUsers implements Users {
 		if (updatedUser.getPassword() != null) {
 			existingUser.setPassword(updatedUser.getPassword());
 		}
+        if (updatedUser.getAvatarUrl() != null) {
+            existingUser.setAvatarUrl(updatedUser.getAvatarUrl());
+        }
 
         try {
             hibernate.update(existingUser);
