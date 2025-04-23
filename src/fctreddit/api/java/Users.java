@@ -65,4 +65,6 @@ public interface Users {
 	 * 		    of the number of hits (including 0 hits)
 	 */
 	Result<List<User>> searchUsers(String pattern);
+
+	Result<User> getUserAux(String userId);
 }

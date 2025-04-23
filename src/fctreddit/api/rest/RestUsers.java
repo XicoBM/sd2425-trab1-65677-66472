@@ -95,4 +95,10 @@ public interface RestUsers {
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	List<User> searchUsers(@QueryParam(QUERY) String pattern);
+
+	
+	@GET
+	@Path("/{" + USER_ID + "}/aux")
+	@Produces(MediaType.APPLICATION_JSON)
+	User getUserAux(@PathParam(USER_ID) String userId);
 }

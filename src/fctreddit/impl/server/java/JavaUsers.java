@@ -187,4 +187,29 @@ public class JavaUsers implements Users {
             return Result.error(ErrorCode.INTERNAL_ERROR);
         }
     }
+
+    @Override
+    public Result<User> getUserAux(String userId) {
+        Log.info("getUser : user = " + userId);
+
+        if (userId == null) {
+            Log.info("UserId null.");
+            return Result.error(ErrorCode.BAD_REQUEST);
+        }
+
+        User user = null;
+        try {
+            user = hibernate.get(User.class, userId);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error(ErrorCode.INTERNAL_ERROR);
+        }
+
+        if (user == null) {
+            Log.info("User does not exist.");
+            return Result.error(ErrorCode.NOT_FOUND);
+        }
+
+        return Result.ok(user);
+    }
 }

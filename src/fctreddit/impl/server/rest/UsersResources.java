@@ -35,6 +35,12 @@ public class UsersResources implements RestUsers {
     }
 
     @Override
+    public User getUserAux(String userId) {
+        Log.info("getUser : user = " + userId );
+        return handleResult(impl.getUserAux(userId), "Failed to retrieve user with ID: " + userId);
+    }
+
+    @Override
     public User updateUser(String userId, String password, User user) {
         Log.info("updateUser : user = " + userId + "; pwd = [PROTECTED] ; userData = " + user);
         return handleResult(impl.updateUser(userId, password, user), "Failed to update user with ID: " + userId);

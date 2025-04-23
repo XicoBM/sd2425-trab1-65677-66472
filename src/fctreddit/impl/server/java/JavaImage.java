@@ -43,31 +43,30 @@ public class JavaImage implements Image {
         this.client = ClientBuilder.newClient(config);
     }
 
-    private User getUser(String userId, String password) {
+    private User getUser(String userId) {
         try {
             List<String> usersServiceUris = discovery.knownUrisOf("Users");
             if (usersServiceUris.isEmpty()) {
                 return null; 
             }
     
-            String usersUri = usersServiceUris.get(0) + "/users/" + userId;
+            String usersUri = usersServiceUris.get(0) + "/users/" + userId + "/aux";
     
-            WebTarget target = client.target(usersUri)
-                                     .queryParam("password", password);
+            WebTarget target = client.target(usersUri);
     
             Response r = target.request().accept(MediaType.APPLICATION_JSON).get();
     
             if (r.getStatus() == 200) {
-                return r.readEntity(User.class); 
+                return r.readEntity(User.class);
+            } else {
+                Log.warning("Failed to get user. Status: " + r.getStatus());
             }
         } catch (Exception e) {
             Log.severe("Exception while contacting Users service: " + e.getMessage());
         }
     
         return null;
-    }
-    
-    
+    }    
     
 
     @Override
@@ -78,7 +77,7 @@ public class JavaImage implements Image {
             return Result.error(ErrorCode.BAD_REQUEST);
         }
 
-        User user = getUser(userId, password);
+        User user = getUser(userId);
         if (user == null) {
             return Result.error(ErrorCode.NOT_FOUND);
         }
@@ -132,7 +131,7 @@ public class JavaImage implements Image {
             return Result.error(ErrorCode.BAD_REQUEST);
         }
 
-        User user = getUser(userId, password);
+        User user = getUser(userId);
         if (user == null) {
             return Result.error(ErrorCode.NOT_FOUND);
         }
