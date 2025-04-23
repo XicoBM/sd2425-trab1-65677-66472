@@ -10,17 +10,17 @@ import fctreddit.api.User;
 import fctreddit.api.java.Result;
 import fctreddit.api.java.Users;
 import fctreddit.impl.grpc.util.DataModelAdaptor;
-import fctreddit.impl.server.grpc.generated_java.UsersGrpc;
-import fctreddit.impl.server.grpc.generated_java.UsersProtoBuf.CreateUserArgs;
-import fctreddit.impl.server.grpc.generated_java.UsersProtoBuf.CreateUserResult;
-import fctreddit.impl.server.grpc.generated_java.UsersProtoBuf.DeleteUserArgs;
-import fctreddit.impl.server.grpc.generated_java.UsersProtoBuf.DeleteUserResult;
-import fctreddit.impl.server.grpc.generated_java.UsersProtoBuf.GetUserArgs;
-import fctreddit.impl.server.grpc.generated_java.UsersProtoBuf.GetUserResult;
-import fctreddit.impl.server.grpc.generated_java.UsersProtoBuf.GrpcUser;
-import fctreddit.impl.server.grpc.generated_java.UsersProtoBuf.SearchUserArgs;
-import fctreddit.impl.server.grpc.generated_java.UsersProtoBuf.UpdateUserArgs;
-import fctreddit.impl.server.grpc.generated_java.UsersProtoBuf.UpdateUserResult;
+import fctreddit.impl.grpc.generated_java.UsersGrpc;
+import fctreddit.impl.grpc.generated_java.UsersProtoBuf.CreateUserArgs;
+import fctreddit.impl.grpc.generated_java.UsersProtoBuf.CreateUserResult;
+import fctreddit.impl.grpc.generated_java.UsersProtoBuf.DeleteUserArgs;
+import fctreddit.impl.grpc.generated_java.UsersProtoBuf.DeleteUserResult;
+import fctreddit.impl.grpc.generated_java.UsersProtoBuf.GetUserArgs;
+import fctreddit.impl.grpc.generated_java.UsersProtoBuf.GetUserResult;
+import fctreddit.impl.grpc.generated_java.UsersProtoBuf.GrpcUser;
+import fctreddit.impl.grpc.generated_java.UsersProtoBuf.SearchUserArgs;
+import fctreddit.impl.grpc.generated_java.UsersProtoBuf.UpdateUserArgs;
+import fctreddit.impl.grpc.generated_java.UsersProtoBuf.UpdateUserResult;
 import fctreddit.impl.server.java.JavaUsers;
 
 public class GrpcUsersServerStub implements UsersGrpc.AsyncService, BindableService {
@@ -56,12 +56,25 @@ public class GrpcUsersServerStub implements UsersGrpc.AsyncService, BindableServ
 
     @Override
     public void updateUser(UpdateUserArgs request, StreamObserver<UpdateUserResult> responseObserver) {
-		throw new RuntimeException("Not Implemented...");
+		Result<User> res = impl.updateUser( request.getUserId(), request.getPassword(), 
+                DataModelAdaptor.GrpcUser_to_User(request.getUser()));
+        if( ! res.isOK() )
+            responseObserver.onError(errorCodeToStatus(res.error()));
+        else {
+            responseObserver.onNext( UpdateUserResult.newBuilder().setUser(DataModelAdaptor.User_to_GrpcUser(res.value())).build() );
+            responseObserver.onCompleted();
+        }
    }
 
 	@Override
     public void deleteUser(DeleteUserArgs request, StreamObserver<DeleteUserResult> responseObserver) {
-		throw new RuntimeException("Not Implemented...");
+		Result<User> res = impl.deleteUser(request.getUserId(), request.getPassword());
+        if( ! res.isOK() )
+            responseObserver.onError(errorCodeToStatus(res.error()));
+        else {
+            responseObserver.onNext( DeleteUserResult.newBuilder().setUser(DataModelAdaptor.User_to_GrpcUser(res.value())).build() );
+            responseObserver.onCompleted();
+        }
     }
 
 	@Override

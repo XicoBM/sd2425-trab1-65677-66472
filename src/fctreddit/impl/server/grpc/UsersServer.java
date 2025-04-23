@@ -1,4 +1,3 @@
-/*
 package fctreddit.impl.server.grpc;
 
 import java.net.InetAddress;
@@ -22,9 +21,7 @@ public class UsersServer {
 		Server server = Grpc.newServerBuilderForPort(PORT, cred).addService(stub).build();
 		String serverURI = String.format(SERVER_BASE_URI, InetAddress.getLocalHost().getHostAddress(), PORT, GRPC_CTX);
 
-
         Log.info(String.format("Users gRPC Server ready at: @ %s\n", serverURI));
         server.start().awaitTermination();
     }
 }
-    */

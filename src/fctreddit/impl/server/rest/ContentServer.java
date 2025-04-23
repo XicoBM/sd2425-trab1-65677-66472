@@ -8,7 +8,6 @@ import java.net.InetSocketAddress;
 import org.glassfish.jersey.jdkhttp.JdkHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
-import fctreddit.api.java.Content;
 import fctreddit.impl.server.discovery.Discovery;
 
 public class ContentServer {
