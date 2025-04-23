@@ -26,6 +26,7 @@ public interface RestContent {
 	public static final String DOWNVOTE = "downvote";
 	public static final String USERID = "userId";
 	public static final String SORTBY = "sortBy";
+	public static final String TIMEOUT = "timeout";
 	
 	/**
 	 * The following constants are the values that can be sent for the query parameter SORTBY
@@ -35,7 +36,8 @@ public interface RestContent {
 	
 	
 	/**
-	 * Creates a new Post (that can be an answer to another Post), generating its unique identifier. 
+	 * Creates a new Post (that can be an answer to another Post, in which case the parentURL should be
+	 * a valid URL for another post), generating its unique identifier. 
 	 * The result should be the identifier of the Post in case of success.
 	 * The creation timestamp of the post should be set to be the time in the server when the request
 	 * was received.
@@ -43,7 +45,7 @@ public interface RestContent {
 	 * @param post - The Post to be created, that should contain the userId of the author in the appropriate field.
 	 * @param password - the password of author of the new post
 	 * @return OK and PostID if the post was created;
-	 * NOT FOUND, if the owner of the short does not exist;
+	 * NOT FOUND, if the owner of the post does not exist, or the parentPost (if not null) does not exists;
 	 * FORBIDDEN, if the password is not correct;
 	 * BAD_REQUEST, otherwise.
 	 */
@@ -63,7 +65,9 @@ public interface RestContent {
 	 * @param sortOrder this is an optional parameter, the admissible values are on constants MOST_UP_VOTES
 	 * and MOST_REPLIES, if the first is indicated, posts IDs should be ordered from the Post with more votes
 	 * to the one with less votes. If the second is provided posts IDs should be ordered from the Post with 
-	 * more replies to the one with less replies.
+	 * more direct replies to the one with less direct replies.
+	 * if there are posts with the same number of up votes or direct replies, respectively, those should be
+	 * ordered by the lexicographic order of the PostID.
 	 * @return 	OK and the List of PostIds that match all options in the right order 
 	 * 			
 	 */
@@ -85,16 +89,21 @@ public interface RestContent {
 	
 	/**
 	 * Retrieves a list with all unique identifiers of posts that have the post
-	 * identified by the postId as their ancestor (i.e., the replies to that post),
+	 * identified by the postId as their parent (i.e., the replies to that post),
 	 * the order should be the creation order of those posts.
-	 * @return 	OK and the List of PostIds that match all options in the right order 
-	 * 			NOT_FOUND if postId does not match an existing Post	
-	 * 		
+	 * @param postId the postId for which answers want to be obtained
+	 * @param timeout (optional) indicates the maximum amount of time that this operation should
+	 * 		  wait (before returning a reply to the client) for a new answer to be added
+	 * 		  to the post. If a new answer is added to the target post after the start of 
+	 * 		  the execution of this operation and before the timeout expires an answer should
+	 * 		  be sent to the client at that time. 		   
+	 * @return 	OK and the List of PostIds that are answers to the post ordered by creationTime 
+	 * 			NOT_FOUND if postId does not match an existing Post			
 	 */
 	@GET
 	@Path("{" + POSTID + "}/" + REPLIES)
 	@Produces(MediaType.APPLICATION_JSON)
-	public List<String> getPostAnswers(@PathParam(POSTID) String postId);
+	public List<String> getPostAnswers(@PathParam(POSTID) String postId, @QueryParam(TIMEOUT) long timeout);
 	
 	/**
 	 * Updates the contents of a post restricted to the fields:
@@ -103,7 +112,8 @@ public interface RestContent {
 	 * @param postId the post that should be updated
 	 * @param userPassword the password, it is assumed that only the author of the post 
 	 * can updated it, and as such, the password sent in the operation should belong to 
-	 * that user.
+	 * that user. The post can only be updated white there are no answers, upVotes, or 
+	 * downVotes on that post.
 	 * @param post A post object with the fields to be updated
 	 * @return 	OK the updated post, in case of success.
 	 * 			FORBIDDEN, if the password is not correct;
@@ -117,7 +127,8 @@ public interface RestContent {
 	
 	/**
 	 * Deletes a given Post, only the author of the Post can do this operation. A successful delete will also remove
-	 * any reply to this post (or replies to those replies) even if performed by different authors.
+	 * any reply to this post (or replies to those replies) even if performed by different authors, however, images
+	 * associated to replies (and replies to replies) should not be deleted by the effects of this operations.
 	 * 
 	 * @param postId the unique identifier of the Post to be deleted
 	 * @return 	NO_CONTENT in case of success 
