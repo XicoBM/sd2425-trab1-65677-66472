@@ -1,127 +1,158 @@
 package fctreddit.impl.server.java;
 
-import java.io.File;
-import java.util.logging.Logger;
-
 import fctreddit.api.User;
 import fctreddit.api.java.Image;
 import fctreddit.api.java.Result;
 import fctreddit.api.java.Result.ErrorCode;
-import fctreddit.impl.server.persistence.Hibernate;
+import fctreddit.impl.server.discovery.Discovery;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import org.glassfish.jersey.client.ClientConfig;
+import org.glassfish.jersey.client.ClientProperties;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.Files;
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.UUID;
+import java.util.logging.Logger;
 
 public class JavaImage implements Image {
 
-    private static Logger Log = Logger.getLogger(JavaUsers.class.getName());
-    private static final String IMAGE_URI = "imageFiles";
-    private Hibernate hibernate;
+    private static Logger Log = Logger.getLogger(JavaImage.class.getName());
+    private static final String IMAGE_DIR = "imageFiles";
+    private static final int CONNECTION_TIMEOUT = 10000;
+    private static final int REPLY_TIMEOUT = 3000;
+
+    private final Discovery discovery = Discovery.getInstance();
+    private final Client client;
 
     public JavaImage() {
-        File dir = new File(IMAGE_URI);
+        File dir = new File(IMAGE_DIR);
         if (!dir.exists()) {
             dir.mkdir();
         }
+
+        ClientConfig config = new ClientConfig();
+        config.property(ClientProperties.CONNECT_TIMEOUT, CONNECTION_TIMEOUT);
+        config.property(ClientProperties.READ_TIMEOUT, REPLY_TIMEOUT);
+        this.client = ClientBuilder.newClient(config);
     }
+
+    private User getUser(String userId, String password) {
+        try {
+            List<String> usersServiceUris = discovery.knownUrisOf("Users");
+            if (usersServiceUris.isEmpty()) {
+                return null; 
+            }
+    
+            String usersUri = usersServiceUris.get(0) + "/users/" + userId;
+    
+            WebTarget target = client.target(usersUri)
+                                     .queryParam("password", password);
+    
+            Response r = target.request().accept(MediaType.APPLICATION_JSON).get();
+    
+            if (r.getStatus() == 200) {
+                return r.readEntity(User.class); 
+            }
+        } catch (Exception e) {
+            Log.severe("Exception while contacting Users service: " + e.getMessage());
+        }
+    
+        return null;
+    }
+    
+    
+    
 
     @Override
     public Result<String> createImage(String userId, byte[] imageContents, String password) {
-        Log.info("createImage : userId = " + userId + "; password = " + password);
+        Log.info("createImage : userId = " + userId);
 
-        if (password == null || imageContents == null) {
-            Log.info("UserId, password or imageContents null.");
+        if (userId == null || password == null || imageContents == null) {
             return Result.error(ErrorCode.BAD_REQUEST);
         }
-        User user = hibernate.get(User.class, userId);
+
+        User user = getUser(userId, password);
         if (user == null) {
-            Log.info("UserId does not exist.");
             return Result.error(ErrorCode.NOT_FOUND);
         }
+
         if (!user.getPassword().equals(password)) {
-            Log.info("UserId or password incorrect.");
             return Result.error(ErrorCode.FORBIDDEN);
         }
 
         try {
-            String imageId = String.valueOf(System.currentTimeMillis());
-            String imagePath = IMAGE_URI + File.separator + imageId + ".png";
-            File imageFile = new File(imagePath);
-            if (!imageFile.exists()) {
-                imageFile.createNewFile();
+            String imageId = UUID.randomUUID().toString();
+            String userFolderPath = IMAGE_DIR + File.separator + userId;
+
+            File userFolder = new File(userFolderPath);
+            if (!userFolder.exists()) {
+                userFolder.mkdirs();
             }
-            java.nio.file.Files.write(imageFile.toPath(), imageContents);
-            return Result.ok(imagePath);
-        } catch (Exception e) {
-            e.printStackTrace(); 
-            Log.info("Image already exists.");
+
+            String imagePath = userFolderPath + File.separator + imageId + ".png";
+            Files.write(Paths.get(imagePath), imageContents);
+
+            String absoluteUri = new File(imagePath).toURI().toString();
+
+            Log.info("Image saved: " + imagePath + " -> URI: " + absoluteUri);
+            return Result.ok(absoluteUri);
+    
+
+        } catch (IOException e) {
+            Log.severe("Error writing image: " + e.getMessage());
             return Result.error(ErrorCode.CONFLICT);
         }
     }
 
     @Override
     public Result<byte[]> getImage(String userId, String imageId) {
-        Log.info("getImage : userId = " +  userId + "; imageId = " + imageId);
-
-        if(userId == null || imageId == null) {
-            Log.info("UserId or imageId null.");
-            return Result.error(ErrorCode.BAD_REQUEST);
-        }
-        byte[] image;
+        Log.info("getImage : " + imageId + " for user " + userId);
         try {
-            image = getImage(imageId);
-            if (image == null) {
-                Log.info("Image not found.");
-                return Result.error(ErrorCode.NOT_FOUND);
-            }
-            return Result.ok(image);
-        } catch (Exception e) {
-            Log.info("Image not found.");
-            return Result.error(ErrorCode.BAD_REQUEST);
+            String imagePath = IMAGE_DIR + File.separator + userId + File.separator + imageId + ".png";
+            byte[] data = Files.readAllBytes(Paths.get(imagePath));
+            return Result.ok(data);
+        } catch (IOException e) {
+            Log.severe("Image not found: " + e.getMessage());
+            return Result.error(ErrorCode.NOT_FOUND);
         }
     }
 
     @Override
     public Result<Void> deleteImage(String userId, String imageId, String password) {
-        Log.info("deleteImage : userId = " + userId + "; imageId = " + imageId + "; password = " + password);
+        Log.info("deleteImage : " + imageId + " by user " + userId);
 
-        if (password == null || imageId == null) {
-            Log.info("UserId, password or imageContents null.");
+        if (userId == null || password == null || imageId == null) {
             return Result.error(ErrorCode.BAD_REQUEST);
         }
-        User user = hibernate.get(User.class, userId);
+
+        User user = getUser(userId, password);
         if (user == null) {
-            Log.info("UserId does not exist.");
             return Result.error(ErrorCode.NOT_FOUND);
         }
+
         if (!user.getPassword().equals(password)) {
-            Log.info("UserId or password incorrect.");
             return Result.error(ErrorCode.FORBIDDEN);
         }
-        try {
-            Path image = Paths.get(IMAGE_URI, imageId + ".png");
-            Files.delete(image);
+
+        String imagePath = IMAGE_DIR + File.separator + userId + File.separator + imageId + ".png";
+        File imgFile = new File(imagePath);
+
+        if (!imgFile.exists()) {
+            return Result.error(ErrorCode.NOT_FOUND);
+        }
+
+        if (imgFile.delete()) {
             return Result.ok();
-        } catch (Exception e) {
-            e.printStackTrace(); 
-            Log.info("Image already exists.");
-            return Result.error(ErrorCode.BAD_REQUEST);
-        }
-    }
-
-    private static byte[] getImage(String imageId) throws IOException {
-        Path imagePath = Paths.get(IMAGE_URI, imageId + ".png");
-
-        if (!Files.exists(imagePath)) {
-            return null;
-        }
-        try {
-            return Files.readAllBytes(imagePath);
-        } catch (IOException e) {
-            Log.severe("getImage: Failed to read image.");
-            throw new IOException("Failed to read image", e);
+        } else {
+            Log.warning("Failed to delete image: " + imagePath);
+            return Result.error(ErrorCode.INTERNAL_ERROR);
         }
     }
 }

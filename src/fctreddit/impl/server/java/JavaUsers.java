@@ -23,18 +23,26 @@ public class JavaUsers implements Users {
     public Result<String> createUser(User user) {
         Log.info("createUser : " + user);
 
-        if (user.getUserId() == null || user.getPassword() == null || user.getFullName() == null
-                || user.getEmail() == null) {
+        if (user.getUserId() == null || user.getUserId().isBlank() ||
+            user.getPassword() == null || user.getPassword().isBlank() ||
+            user.getFullName() == null || user.getFullName().isBlank() ||
+            user.getEmail() == null || user.getEmail().isBlank()) {
             Log.info("User object invalid.");
             return Result.error(ErrorCode.BAD_REQUEST);
+        }
+
+        User existingUser = hibernate.get(User.class, user.getUserId());
+        if (existingUser != null) {
+            Log.info("User already exists.");
+            return Result.error(ErrorCode.CONFLICT);
         }
 
         try {
             hibernate.persist(user);
         } catch (Exception e) {
             e.printStackTrace(); 
-            Log.info("User already exists.");
-            return Result.error(ErrorCode.CONFLICT);
+            Log.info("Unable to store user.");
+            return Result.error(ErrorCode.INTERNAL_ERROR);
         }
 
         return Result.ok(user.getUserId());
@@ -45,7 +53,7 @@ public class JavaUsers implements Users {
         Log.info("getUser : user = " + userId + "; pwd = " + password);
 
         // Check if user is valid
-        if (userId == null || password == null) {
+        if (userId == null) {
             Log.info("UserId or password null.");
             return Result.error(ErrorCode.BAD_REQUEST);
         }
@@ -65,7 +73,7 @@ public class JavaUsers implements Users {
         }
 
         // Check if the password is correct
-        if (!user.getPassword().equals(password)) {
+        if (password == null || !user.getPassword().equals(password)) {
             Log.info("Password is incorrect");
             return Result.error(ErrorCode.FORBIDDEN);
         }
