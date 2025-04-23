@@ -100,7 +100,7 @@ public class JavaContent implements Content {
     }
 
     @Override
-    public Result<List<String>> getPostAnswers(String postId) {
+    public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
         Log.info("getPostAnswers called with postId: " + postId);
 
         Post post = hibernate.get(Post.class, postId);

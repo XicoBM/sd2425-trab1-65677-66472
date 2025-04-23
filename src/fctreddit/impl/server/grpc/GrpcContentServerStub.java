@@ -15,6 +15,7 @@ import fctreddit.impl.grpc.generated_java.ContentProtoBuf.CreatePostArgs;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.CreatePostResult;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.DeletePostArgs;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage;
+import fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostAnswersArgs;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostArgs;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostsArgs;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostsResult;
@@ -67,14 +68,15 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
     }
 
     @Override
-    public void getPostAnswers(GetPostArgs request, StreamObserver<GetPostsResult> responseObserver) {
-        Result<List<String>> res = impl.getPostAnswers(request.getPostId());
+    public void getPostAnswers(GetPostAnswersArgs request, StreamObserver<GetPostsResult> responseObserver) {
+        long Timeout = 3000;
+        Result<List<String>> res = impl.getPostAnswers(request.getPostId(), Timeout);
         if (!res.isOK())
             responseObserver.onError(errorCodeToStatus(res.error()));
         else {
             responseObserver.onNext(GetPostsResult.newBuilder().addAllPostId(res.value()).build());
             responseObserver.onCompleted();
-        }
+        } 
     }
 
     @Override

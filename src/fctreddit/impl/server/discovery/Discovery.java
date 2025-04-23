@@ -18,9 +18,9 @@ public class Discovery {
         System.setProperty("java.util.logging.SimpleFormatter.format", "%4$s: %5$s");
     }
 
-    static final InetSocketAddress DISCOVERY_ADDR = new InetSocketAddress("230.0.0.1", 4446); // IP e porta mais comuns para multicast
+    static final InetSocketAddress DISCOVERY_ADDR = new InetSocketAddress("226.226.226.226", 2266);
     static final int DISCOVERY_PERIOD = 1000;
-    static final int DISCOVERY_TIMEOUT = 5000;
+    static final int DISCOVERY_TIMEOUT = 15000; // 15 seconds
     private static final String DELIMITER = "\t";
 
     private final Map<String, Set<String>> uris = new ConcurrentHashMap<>();
@@ -45,31 +45,35 @@ public class Discovery {
         try {
             MulticastSocket ms = new MulticastSocket(addr.getPort());
             
-            // Exibe as interfaces de rede disponíveis para multicast
+            // Log available network interfaces
             for (NetworkInterface ni : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-                System.out.println("Interface: " + ni.getName() + " up=" + ni.isUp() + " multicast=" + ni.supportsMulticast());
+                Log.info("Interface: " + ni.getName() + " up=" + ni.isUp() + " multicast=" + ni.supportsMulticast());
                 if (ni.isUp() && !ni.isLoopback() && ni.supportsMulticast()) {
                     try {
                         ms.joinGroup(new InetSocketAddress(addr.getAddress(), 0), ni);
+                        Log.info("Joined multicast group on interface: " + ni.getName());
                     } catch (Exception e) {
                         Log.warning("Could not join group on interface " + ni.getName() + ": " + e.getMessage());
                     }
                 }
             }
 
-            // Thread para enviar anúncios
+            // Thread for sending announcements
             new Thread(() -> {
                 while (running) {
                     try {
                         ms.send(announcePkt);
+                        Log.fine("Sent announcement: " + serviceName + " -> " + serviceURI);
                         Thread.sleep(DISCOVERY_PERIOD);
                     } catch (Exception e) {
-                        Log.severe("Error sending announcement: " + e.getMessage());
+                        Log.severe("Error sending announcement for " + serviceName + ": " + e.getMessage());
+                        e.printStackTrace();
                     }
                 }
-            }).start();
+                ms.close();
+            }, "Discovery-Send-" + serviceName).start();
 
-            // Thread para receber anúncios
+            // Thread for receiving announcements
             new Thread(() -> {
                 DatagramPacket pkt = new DatagramPacket(new byte[1024], 1024);
                 while (running) {
@@ -79,18 +83,21 @@ public class Discovery {
                         String msg = new String(pkt.getData(), 0, pkt.getLength());
                         String[] msgElems = msg.split(DELIMITER);
                         if (msgElems.length == 2) {
-                            Log.info(String.format("Received announcement: %s", msg));
+                            Log.fine(String.format("Received announcement: %s -> %s", msgElems[0], msgElems[1]));
                             uris.computeIfAbsent(msgElems[0], k -> new HashSet<>()).add(msgElems[1]);
+                        } else {
+                            Log.warning("Invalid announcement format: " + msg);
                         }
                     } catch (IOException e) {
                         Log.warning("Error receiving announcement: " + e.getMessage());
                     }
                 }
-            }).start();
+            }, "Discovery-Receive-" + serviceName).start();
 
             ms.setSoTimeout(DISCOVERY_TIMEOUT);
         } catch (Exception e) {
-            Log.severe("Error starting Discovery: " + e.getMessage());
+            Log.severe("Error starting Discovery for " + serviceName + ": " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -103,20 +110,16 @@ public class Discovery {
     }
 
     public static void main(String[] args) {
-        // Teste simples
         Discovery discovery = Discovery.getInstance();
         discovery.start(DISCOVERY_ADDR, "TestService", "http://localhost/test");
 
-        // Simula um tempo de execução para enviar e receber pacotes
         try {
             Thread.sleep(10000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
 
-        // Exibe as URIs conhecidas
         System.out.println("Known URIs for 'TestService': " + discovery.knownUrisOf("TestService"));
-
         discovery.stop();
     }
 }

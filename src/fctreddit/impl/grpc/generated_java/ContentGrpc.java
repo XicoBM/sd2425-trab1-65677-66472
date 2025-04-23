@@ -108,27 +108,27 @@ public final class ContentGrpc {
     return getGetPostMethod;
   }
 
-  private static volatile io.grpc.MethodDescriptor<fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostArgs,
+  private static volatile io.grpc.MethodDescriptor<fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostAnswersArgs,
       fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostsResult> getGetPostAnswersMethod;
 
   @io.grpc.stub.annotations.RpcMethod(
       fullMethodName = SERVICE_NAME + '/' + "getPostAnswers",
-      requestType = fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostArgs.class,
+      requestType = fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostAnswersArgs.class,
       responseType = fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostsResult.class,
       methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
-  public static io.grpc.MethodDescriptor<fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostArgs,
+  public static io.grpc.MethodDescriptor<fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostAnswersArgs,
       fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostsResult> getGetPostAnswersMethod() {
-    io.grpc.MethodDescriptor<fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostArgs, fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostsResult> getGetPostAnswersMethod;
+    io.grpc.MethodDescriptor<fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostAnswersArgs, fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostsResult> getGetPostAnswersMethod;
     if ((getGetPostAnswersMethod = ContentGrpc.getGetPostAnswersMethod) == null) {
       synchronized (ContentGrpc.class) {
         if ((getGetPostAnswersMethod = ContentGrpc.getGetPostAnswersMethod) == null) {
           ContentGrpc.getGetPostAnswersMethod = getGetPostAnswersMethod =
-              io.grpc.MethodDescriptor.<fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostArgs, fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostsResult>newBuilder()
+              io.grpc.MethodDescriptor.<fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostAnswersArgs, fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostsResult>newBuilder()
               .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
               .setFullMethodName(generateFullMethodName(SERVICE_NAME, "getPostAnswers"))
               .setSampledToLocalTracing(true)
               .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostArgs.getDefaultInstance()))
+                  fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostAnswersArgs.getDefaultInstance()))
               .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
                   fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostsResult.getDefaultInstance()))
               .setSchemaDescriptor(new ContentMethodDescriptorSupplier("getPostAnswers"))
@@ -458,7 +458,7 @@ public final class ContentGrpc {
 
     /**
      */
-    default void getPostAnswers(fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostArgs request,
+    default void getPostAnswers(fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostAnswersArgs request,
         io.grpc.stub.StreamObserver<fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostsResult> responseObserver) {
       io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getGetPostAnswersMethod(), responseObserver);
     }
@@ -573,7 +573,7 @@ public final class ContentGrpc {
 
     /**
      */
-    public void getPostAnswers(fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostArgs request,
+    public void getPostAnswers(fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostAnswersArgs request,
         io.grpc.stub.StreamObserver<fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostsResult> responseObserver) {
       io.grpc.stub.ClientCalls.asyncUnaryCall(
           getChannel().newCall(getGetPostAnswersMethod(), getCallOptions()), request, responseObserver);
@@ -683,7 +683,7 @@ public final class ContentGrpc {
 
     /**
      */
-    public fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostsResult getPostAnswers(fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostArgs request) {
+    public fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostsResult getPostAnswers(fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostAnswersArgs request) {
       return io.grpc.stub.ClientCalls.blockingUnaryCall(
           getChannel(), getGetPostAnswersMethod(), getCallOptions(), request);
     }
@@ -788,7 +788,7 @@ public final class ContentGrpc {
     /**
      */
     public com.google.common.util.concurrent.ListenableFuture<fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostsResult> getPostAnswers(
-        fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostArgs request) {
+        fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostAnswersArgs request) {
       return io.grpc.stub.ClientCalls.futureUnaryCall(
           getChannel().newCall(getGetPostAnswersMethod(), getCallOptions()), request);
     }
@@ -901,7 +901,7 @@ public final class ContentGrpc {
               (io.grpc.stub.StreamObserver<fctreddit.impl.grpc.generated_java.ContentProtoBuf.GrpcPost>) responseObserver);
           break;
         case METHODID_GET_POST_ANSWERS:
-          serviceImpl.getPostAnswers((fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostArgs) request,
+          serviceImpl.getPostAnswers((fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostAnswersArgs) request,
               (io.grpc.stub.StreamObserver<fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostsResult>) responseObserver);
           break;
         case METHODID_UPDATE_POST:
@@ -979,7 +979,7 @@ public final class ContentGrpc {
           getGetPostAnswersMethod(),
           io.grpc.stub.ServerCalls.asyncUnaryCall(
             new MethodHandlers<
-              fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostArgs,
+              fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostAnswersArgs,
               fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostsResult>(
                 service, METHODID_GET_POST_ANSWERS)))
         .addMethod(

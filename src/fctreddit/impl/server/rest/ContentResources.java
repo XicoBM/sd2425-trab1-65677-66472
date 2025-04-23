@@ -40,9 +40,9 @@ public class ContentResources implements RestContent {
     }
 
     @Override
-    public List<String> getPostAnswers(String postId) {
+    public List<String> getPostAnswers(String postId, long maxTimeout) {
         Log.info("getPostAnswers called with postId: " + postId);
-        return handleResult(impl.getPostAnswers(postId), "Failed to retrieve answers for post with ID: " + postId);
+        return handleResult(impl.getPostAnswers(postId, maxTimeout), "Failed to retrieve answers for post with ID: " + postId);
     }
 
     @Override
