@@ -1,5 +1,7 @@
 package fctreddit.api;
 
+import java.util.UUID;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 
@@ -25,7 +27,7 @@ public class Post {
 	}
 
 	public Post(String authorId, String content) {
-		this.postId = null;
+		this.postId = UUID.randomUUID().toString();
 		this.authorId = authorId;
 		this.creationTimestamp = System.currentTimeMillis();
 		this.content = content;
@@ -59,10 +61,6 @@ public class Post {
 
 	public String getPostId() {
 		return postId;
-	}
-
-	public void setPostId(String postId) {
-		this.postId = postId;
 	}
 
 	public String getAuthorId() {
