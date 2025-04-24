@@ -83,7 +83,15 @@ public Result<String> createPost(Post post, String userPassword) {
         Log.info("createPost: Invalid input.");
         return Result.error(ErrorCode.FORBIDDEN);
     }
-
+    if (post.getParentUrl() != null) {
+        String parentId = post.getParentUrl().substring(post.getParentUrl().lastIndexOf('/') + 1);
+        Post parentPost = hibernate.get(Post.class, parentId);
+        if (parentPost == null) {
+            Log.info("createPost: Parent post not found.");
+            return Result.error(ErrorCode.NOT_FOUND);
+        }
+    }
+    
     try {
         String postId = UUID.randomUUID().toString();
         post.setPostId(postId); 
