@@ -1,6 +1,7 @@
 package fctreddit.impl.server.java;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 import org.glassfish.jersey.client.ClientConfig;
@@ -9,7 +10,6 @@ import org.glassfish.jersey.client.ClientProperties;
 import fctreddit.api.java.Content;
 import fctreddit.api.java.Result;
 import fctreddit.api.java.Result.ErrorCode;
-import fctreddit.impl.server.rest.ContentResources;
 import fctreddit.impl.server.discovery.Discovery;
 import fctreddit.impl.server.persistence.Hibernate;
 import fctreddit.api.Post;
@@ -36,12 +36,10 @@ public class JavaContent implements Content {
     private final Discovery discovery = Discovery.getInstance();
     private final Client client;
 
-    private ContentResources contentResources;
     private Hibernate hibernate;
 
     public JavaContent() {
         hibernate = Hibernate.getInstance();
-        contentResources = new ContentResources();
         ClientConfig config = new ClientConfig();
         config.property(ClientProperties.CONNECT_TIMEOUT, CONNECTION_TIMEOUT);
         config.property(ClientProperties.READ_TIMEOUT, REPLY_TIMEOUT);
@@ -73,34 +71,36 @@ public class JavaContent implements Content {
         return null;
     }   
 
-    @Override
-    public Result<String> createPost(Post post, String userPassword) {
-        Log.info("createPost called with userId: " + post.getAuthorId());
-        User user = getUser(post.getAuthorId());
-        if (user == null) {
-            Log.info("createPost: User not found.");
-            return Result.error(ErrorCode.NOT_FOUND);
-        }
-        if (!user.getPassword().equals(userPassword)) {
-            Log.info("createPost: Invalid input.");
-            return Result.error(ErrorCode.FORBIDDEN);
-        }
-        Post existingPostParent = hibernate.get(Post.class, post.getParentUrl());
-        if (post.getParentUrl() != null && existingPostParent == null) {
-            return Result.error(ErrorCode.NOT_FOUND);
-        }
-        
-
-        try {
-            hibernate.persist(post);
-            String postId = post.getPostId();
-            return Result.ok(postId);
-        } catch (Exception e) {
-            e.printStackTrace();
-            Log.info("createPost: Failed to write post.");
-            return Result.error(ErrorCode.BAD_REQUEST);
-        }
+@Override
+public Result<String> createPost(Post post, String userPassword) {
+    Log.info("createPost called with userId: " + post.getAuthorId());
+    User user = getUser(post.getAuthorId());
+    if (user == null) {
+        Log.info("createPost: User not found.");
+        return Result.error(ErrorCode.NOT_FOUND);
     }
+    if (!user.getPassword().equals(userPassword)) {
+        Log.info("createPost: Invalid input.");
+        return Result.error(ErrorCode.FORBIDDEN);
+    }
+    
+    Post existingPostParent = hibernate.get(Post.class, post.getParentUrl());
+    if (post.getParentUrl() != null && existingPostParent == null) {
+        return Result.error(ErrorCode.NOT_FOUND);
+    }
+
+    try {
+        String postId = UUID.randomUUID().toString();
+        post.setPostId(postId); 
+        hibernate.persist(post);
+        return Result.ok(postId);
+    } catch (Exception e) {
+        e.printStackTrace();
+        Log.info("createPost: Failed to write post.");
+        return Result.error(ErrorCode.INTERNAL_ERROR);
+    }
+}
+
 
     @Override
     public Result<List<String>> getPosts(long timestamp, String sortOrder) {
@@ -213,11 +213,12 @@ public class JavaContent implements Content {
         }
         List<String> postIds = hibernate.jpql("SELECT p.postId FROM Post p WHERE p.parentUrl = :parentUrl", String.class);
         for (String ids : postIds) {
+            /**
             Post var = contentResources.getPost(ids);
             if (var.getParentUrl() == post.getMediaUrl()) {
                 Log.info("deletePost: Cannot delete post with answers.");
                 return Result.error(ErrorCode.CONFLICT);
-            }
+            }*/
         }
         if (post.getUpVote() != 0 || post.getDownVote() != 0) {
             Log.info("deletePost: Cannot delete post with votes.");
