@@ -14,7 +14,9 @@ import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
@@ -69,60 +71,69 @@ public class JavaImage implements Image {
     }    
     
 
-    @Override
-    public Result<String> createImage(String userId, byte[] imageContents, String password) {
-        Log.info("createImage : userId = " + userId);
+@Override
+public Result<String> createImage(String userId, byte[] imageContents, String password) {
+    Log.info("createImage : userId = " + userId);
 
-        if (userId == null || password == null || imageContents == null) {
-            return Result.error(ErrorCode.BAD_REQUEST);
+    if (userId == null || password == null || imageContents == null) {
+        return Result.error(ErrorCode.BAD_REQUEST);
+    }
+
+    User user = getUser(userId);
+    if (user == null) {
+        return Result.error(ErrorCode.NOT_FOUND);
+    }
+
+    if (!user.getPassword().equals(password)) {
+        return Result.error(ErrorCode.FORBIDDEN);
+    }
+
+    try {
+        String imageId = UUID.randomUUID().toString();
+        String userFolderPath = IMAGE_DIR + File.separator + userId;
+
+        File userFolder = new File(userFolderPath);
+        if (!userFolder.exists()) {
+            userFolder.mkdirs();
         }
 
-        User user = getUser(userId);
-        if (user == null) {
-            return Result.error(ErrorCode.NOT_FOUND);
-        }
+        String imagePath = userFolderPath + File.separator + imageId + ".png";
+        Files.write(Paths.get(imagePath), imageContents);
 
-        if (!user.getPassword().equals(password)) {
-            return Result.error(ErrorCode.FORBIDDEN);
-        }
+        String serverIp = InetAddress.getLocalHost().getHostAddress();
+        String imageUrl = String.format("http://%s:8082/rest/image/%s/%s.png", serverIp, userId, imageId);
 
-        try {
-            String imageId = UUID.randomUUID().toString();
-            String userFolderPath = IMAGE_DIR + File.separator + userId;
+        return Result.ok(imageUrl);
 
-            File userFolder = new File(userFolderPath);
-            if (!userFolder.exists()) {
-                userFolder.mkdirs();
-            }
+    } catch (IOException e) {
+        Log.severe("Error writing image: " + e.getMessage());
+        return Result.error(ErrorCode.CONFLICT);
+    }
+}
 
-            String imagePath = userFolderPath + File.separator + imageId + ".png";
-            Files.write(Paths.get(imagePath), imageContents);
 
-            String absoluteUri = new File(imagePath).toURI().toString();
+@Override
+public Result<byte[]> getImage(String userId, String imageId) {
+    Log.info("getImage : " + imageId + " by user " + userId);
 
-            Log.info("Image saved: " + imagePath + " -> URI: " + absoluteUri);
-            return Result.ok(absoluteUri);
+    String imagePath = IMAGE_DIR + File.separator + userId + File.separator + imageId;
+    File file = new File(imagePath);
+
+    if (!file.exists() || !file.isFile()) {
+        Log.warning("Image not found at path: " + imagePath);
+        return Result.error(ErrorCode.NOT_FOUND);
+    }
+
+    try (FileInputStream in = new FileInputStream(file)) {
+        byte[] data = in.readAllBytes();
+        return Result.ok(data);
+    } catch (IOException e) {
+        Log.severe("Unexpected error reading image file: " + e.getMessage());
+        return Result.error(ErrorCode.INTERNAL_ERROR);
+    }
+}
+
     
-
-        } catch (IOException e) {
-            Log.severe("Error writing image: " + e.getMessage());
-            return Result.error(ErrorCode.CONFLICT);
-        }
-    }
-
-    @Override
-    public Result<byte[]> getImage(String userId, String imageId) {
-        Log.info("getImage : " + imageId + " for user " + userId);
-        try {
-            String imagePath = IMAGE_DIR + File.separator + userId + File.separator + imageId + ".png";
-            byte[] data = Files.readAllBytes(Paths.get(imagePath));
-            return Result.ok(data);
-        } catch (IOException e) {
-            Log.severe("Image not found: " + e.getMessage());
-            return Result.error(ErrorCode.NOT_FOUND);
-        }
-    }
-
     @Override
     public Result<Void> deleteImage(String userId, String imageId, String password) {
         Log.info("deleteImage : " + imageId + " by user " + userId);
@@ -140,7 +151,7 @@ public class JavaImage implements Image {
             return Result.error(ErrorCode.FORBIDDEN);
         }
 
-        String imagePath = IMAGE_DIR + File.separator + userId + File.separator + imageId + ".png";
+        String imagePath = IMAGE_DIR + File.separator + userId + File.separator + imageId;
         File imgFile = new File(imagePath);
 
         if (!imgFile.exists()) {
