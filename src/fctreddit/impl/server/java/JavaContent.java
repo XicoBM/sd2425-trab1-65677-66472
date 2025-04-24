@@ -3,10 +3,14 @@ package fctreddit.impl.server.java;
 import java.util.List;
 import java.util.logging.Logger;
 
+import org.glassfish.jersey.client.ClientConfig;
+import org.glassfish.jersey.client.ClientProperties;
+
 import fctreddit.api.java.Content;
 import fctreddit.api.java.Result;
 import fctreddit.api.java.Result.ErrorCode;
 import fctreddit.impl.server.rest.ContentResources;
+import fctreddit.impl.server.discovery.Discovery;
 import fctreddit.impl.server.persistence.Hibernate;
 import fctreddit.api.Post;
 import fctreddit.api.User;
@@ -15,12 +19,22 @@ import fctreddit.api.Votes;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.TypedQuery;
 import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 
 
 
 public class JavaContent implements Content {
     private static Logger Log = Logger.getLogger(JavaContent.class.getName());
+    private static final int CONNECTION_TIMEOUT = 10000;
+    private static final int REPLY_TIMEOUT = 3000;
+
+    private final Discovery discovery = Discovery.getInstance();
+    private final Client client;
 
     private ContentResources contentResources;
     private Hibernate hibernate;
@@ -28,21 +42,54 @@ public class JavaContent implements Content {
     public JavaContent() {
         hibernate = Hibernate.getInstance();
         contentResources = new ContentResources();
+        ClientConfig config = new ClientConfig();
+        config.property(ClientProperties.CONNECT_TIMEOUT, CONNECTION_TIMEOUT);
+        config.property(ClientProperties.READ_TIMEOUT, REPLY_TIMEOUT);
+        this.client = ClientBuilder.newClient(config);
+    }
+
+        private User getUser(String userId) {
+        try {
+            List<String> usersServiceUris = discovery.knownUrisOf("Users");
+            if (usersServiceUris.isEmpty()) {
+                return null; 
+            }
+    
+            String usersUri = usersServiceUris.get(0) + "/users/" + userId + "/aux";
+    
+            WebTarget target = client.target(usersUri);
+    
+            Response r = target.request().accept(MediaType.APPLICATION_JSON).get();
+    
+            if (r.getStatus() == 200) {
+                return r.readEntity(User.class);
+            } else {
+                Log.warning("Failed to get user. Status: " + r.getStatus());
+            }
+        } catch (Exception e) {
+            Log.severe("Exception while contacting Users service: " + e.getMessage());
         }
+    
+        return null;
+    }   
 
     @Override
     public Result<String> createPost(Post post, String userPassword) {
         Log.info("createPost called with userId: " + post.getAuthorId());
-        User user = hibernate.get(User.class, post.getAuthorId());
-
-        if (post.getAuthorId() == null) {
-            Log.info("createPost: Invalid input.");
+        User user = getUser(post.getAuthorId());
+        if (user == null) {
+            Log.info("createPost: User not found.");
             return Result.error(ErrorCode.NOT_FOUND);
         }
         if (!user.getPassword().equals(userPassword)) {
             Log.info("createPost: Invalid input.");
             return Result.error(ErrorCode.FORBIDDEN);
         }
+        Post existingPostParent = hibernate.get(Post.class, post.getParentUrl());
+        if (post.getParentUrl() != null && existingPostParent == null) {
+            return Result.error(ErrorCode.NOT_FOUND);
+        }
+        
 
         try {
             hibernate.persist(post);
