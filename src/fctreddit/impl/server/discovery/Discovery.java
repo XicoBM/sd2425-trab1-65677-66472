@@ -7,6 +7,7 @@ import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 public class Discovery {
@@ -20,7 +21,7 @@ public class Discovery {
     private static final String DELIMITER = "\t";
     private static final int DISCOVERY_PERIOD = 1000;
 
-    private final Map<String, Set<String>> uris = new HashMap<>();
+    private final Map<String, Set<String>> uris = new ConcurrentHashMap<>();
     private boolean started = false;
 
     private static Discovery instance;
@@ -32,10 +33,14 @@ public class Discovery {
         return instance;
     }
 
-    private Discovery() {}
+    private Discovery() {
+    }
 
-    public synchronized void start(InetSocketAddress addr, String serviceName, String serviceURI) {
-        if (started) return;
+    public void start(InetSocketAddress addr, String serviceName, String serviceURI) {
+        if (started) {
+            Log.warning("Discovery already started. Ignoring start request.");
+            return;
+        }
         started = true;
 
         Log.info(String.format("Starting Discovery announcements on: %s for: %s -> %s", addr, serviceName, serviceURI));
@@ -45,61 +50,47 @@ public class Discovery {
 
         try {
             MulticastSocket ms = new MulticastSocket(addr.getPort());
+            ms.joinGroup(addr, NetworkInterface.getByInetAddress(InetAddress.getLocalHost()));
 
-            // Solução robusta para interfaces de rede
-            NetworkInterface nif = NetworkInterface.networkInterfaces()
-                .filter(ni -> {
-                    try {
-                        return ni.supportsMulticast() && ni.isUp();
-                    } catch (Exception e) {
-                        return false;
-                    }
-                })
-                .findFirst()
-                .orElseThrow(() -> new IOException("No suitable network interface found"));
-
-            ms.joinGroup(addr, nif);
-
-            // Announcement thread
+            // Thread para enviar anúncios
             new Thread(() -> {
                 while (true) {
                     try {
                         ms.send(announcePkt);
+                        Log.info("Sent announcement: " + serviceName + " -> " + serviceURI);
                         Thread.sleep(DISCOVERY_PERIOD);
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        Log.severe("Error sending announcement: " + e.getMessage());
                     }
                 }
             }).start();
 
-            // Listener thread
+            // Thread para receber anúncios
             new Thread(() -> {
                 DatagramPacket pkt = new DatagramPacket(new byte[1024], 1024);
                 while (true) {
                     try {
-                        pkt.setLength(1024);
                         ms.receive(pkt);
                         String msg = new String(pkt.getData(), 0, pkt.getLength());
-                        String[] parts = msg.split(DELIMITER);
+                        Log.info("Received announcement: " + msg);
 
+                        String[] parts = msg.split(DELIMITER);
                         if (parts.length == 2) {
                             String name = parts[0];
                             String uri = parts[1];
-
                             synchronized (uris) {
-                                uris.computeIfAbsent(name, k -> new HashSet<>()).add(uri);
+                                uris.computeIfAbsent(name, k -> ConcurrentHashMap.newKeySet()).add(uri);
                             }
-
-                            Log.info(String.format("Received announcement: %s -> %s", name, uri));
+                            Log.info("Updated URIs: " + uris);
                         }
                     } catch (IOException e) {
-                        // Silently ignore
+                        Log.warning("Error receiving announcement: " + e.getMessage());
                     }
                 }
             }).start();
 
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.severe("Error starting Discovery: " + e.getMessage());
         }
     }
 
