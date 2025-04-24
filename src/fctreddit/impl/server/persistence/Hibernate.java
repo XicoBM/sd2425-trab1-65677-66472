@@ -11,7 +11,7 @@ import jakarta.persistence.TypedQuery;
 
 public class Hibernate {
 	private static final String HIBERNATE_CFG_FILE = "hibernate.cfg.xml";
-	private SessionFactory sessionFactory;
+	public SessionFactory sessionFactory;
 	private static Hibernate instance;
 
 	private Hibernate() {

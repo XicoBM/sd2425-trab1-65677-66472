@@ -1,11 +1,13 @@
 package fctreddit.impl.server.java;
 
+import java.net.InetAddress;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
 
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
+import org.hibernate.Session;
 
 import fctreddit.api.java.Content;
 import fctreddit.api.java.Result;
@@ -150,19 +152,42 @@ public Result<String> createPost(Post post, String userPassword) {
     }
 
     @Override
-    public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
-        Log.info("getPostAnswers called with postId: " + postId);
+public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
+    Log.info("getPostAnswers called with postId: " + postId);
 
-        Post post = hibernate.get(Post.class, postId);
-        if (post == null) {
+    if (postId == null || postId.trim().isEmpty()) {
+        Log.info("getPostAnswers: Invalid postId.");
+        return Result.error(ErrorCode.BAD_REQUEST);
+    }
+
+    try (Session session = Hibernate.getInstance().sessionFactory.openSession()) { 
+        Post parentPost = session.get(Post.class, postId);
+        if (parentPost == null) {
             Log.info("getPostAnswers: Post not found.");
             return Result.error(ErrorCode.NOT_FOUND);
         }
-        TypedQuery<String> query = hibernate.jpql2("SELECT p.postId FROM Post p WHERE p.parentUrl = :parentUrl",
-                String.class);
-        List<String> res = query.setParameter("parentUrl", postId).getResultList();
-        return Result.ok(res);
+
+        String serverIp = InetAddress.getLocalHost().getHostAddress();
+        String parentUrl = String.format("http://%s:8081/rest/posts/%s", serverIp, postId);
+
+        // Agora buscamos todos os posts que têm o parentUrl igual ao URL do post pai
+        TypedQuery<String> query = session.createQuery(
+            "SELECT p.postId FROM Post p WHERE p.parentUrl = :parentUrl", 
+            String.class
+        );
+        query.setParameter("parentUrl", parentUrl); // Comparar com o URL completo do post pai
+
+        List<String> result = query.getResultList();
+        Log.info("Returning " + result.size() + " answers for postId: " + postId);
+
+        return Result.ok(result);
+    } catch (Exception e) {
+        Log.severe("getPostAnswers: Unexpected error: " + e.getMessage());
+        e.printStackTrace();
+        return Result.error(ErrorCode.INTERNAL_ERROR);
     }
+}
+
 
     @Override
     public Result<Post> updatePost(String postId, String userPassword, Post post) {
