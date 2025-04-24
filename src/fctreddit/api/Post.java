@@ -47,11 +47,11 @@ public class Post {
 		this.mediaUrl = mediaUrl;
 	}
 
-	public Post(String postId, String authorId, long creationTime, String content, String mediaUrl, String parentUrl,
+	public Post(String authorId, String content, String mediaUrl, String parentUrl,
 			int upVote, int downVote) {
-		this.postId = postId;
+		this.postId = UUID.randomUUID().toString();
 		this.authorId = authorId;
-		this.creationTimestamp = creationTime;
+		this.creationTimestamp = System.currentTimeMillis();
 		this.content = content;
 		this.mediaUrl = mediaUrl;
 		this.parentUrl = parentUrl;
