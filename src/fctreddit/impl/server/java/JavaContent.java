@@ -166,40 +166,58 @@ public Result<List<String>> getPosts(long timestamp, String sortOrder) {
     }
 
     @Override
-    public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
-        Log.info("getPostAnswers called with postId: " + postId);
-
+    public Result<List<String>> getPostAnswers(String postId, long timeout) {
+        Log.info("getPostAnswers called with postId: " + postId + ", timeout: " + timeout);
+    
         if (postId == null || postId.trim().isEmpty()) {
             Log.info("getPostAnswers: Invalid postId.");
             return Result.error(ErrorCode.BAD_REQUEST);
         }
-
-        try (Session session = Hibernate.getInstance().sessionFactory.openSession()) { 
+    
+        try (Session session = Hibernate.getInstance().sessionFactory.openSession()) {
             Post parentPost = session.get(Post.class, postId);
             if (parentPost == null) {
                 Log.info("getPostAnswers: Post not found.");
                 return Result.error(ErrorCode.NOT_FOUND);
             }
-
+    
             String serverIp = InetAddress.getLocalHost().getHostAddress();
             String parentUrl = String.format("http://%s:8081/rest/posts/%s", serverIp, postId);
-
+    
             TypedQuery<String> query = session.createQuery(
-                "SELECT p.postId FROM Post p WHERE p.parentUrl = :parentUrl", 
+                "SELECT p.postId FROM Post p WHERE p.parentUrl = :parentUrl",
                 String.class
             );
-            query.setParameter("parentUrl", parentUrl); // Comparar com o URL completo do post pai
-
-            List<String> result = query.getResultList();
-            Log.info("Returning " + result.size() + " answers for postId: " + postId);
-
-            return Result.ok(result);
+            query.setParameter("parentUrl", parentUrl);
+    
+            List<String> initialAnswers = query.getResultList();
+            if (timeout <= 0) {
+                return Result.ok(initialAnswers);
+            }
+    
+            long startTime = System.currentTimeMillis();
+            while (System.currentTimeMillis() - startTime < timeout) {
+                Thread.sleep(1000); 
+    
+                List<String> currentAnswers = session.createQuery(
+                    "SELECT p.postId FROM Post p WHERE p.parentUrl = :parentUrl",
+                    String.class
+                ).setParameter("parentUrl", parentUrl).getResultList();
+    
+                if (currentAnswers.size() > initialAnswers.size()) {
+                    return Result.ok(currentAnswers);
+                }
+            }
+    
+            return Result.ok(initialAnswers);
+    
         } catch (Exception e) {
             Log.severe("getPostAnswers: Unexpected error: " + e.getMessage());
             e.printStackTrace();
             return Result.error(ErrorCode.INTERNAL_ERROR);
         }
     }
+    
 
 
     @Override
@@ -207,7 +225,7 @@ public Result<List<String>> getPosts(long timestamp, String sortOrder) {
         Log.info("updatePost called with postId: " + postId + " and userPassword: " + userPassword);
 
         Post existingPost = hibernate.get(Post.class, postId);
-        User user = hibernate.get(User.class, existingPost.getAuthorId());
+        User user = getUser(existingPost.getAuthorId());
         if (!user.getPassword().equals(userPassword)) {
             Log.info("updatePost: Invalid password.");
             return Result.error(ErrorCode.FORBIDDEN);
@@ -219,7 +237,7 @@ public Result<List<String>> getPosts(long timestamp, String sortOrder) {
         Result<List<String>> answersResult = getPostAnswers(postId, 0);
         if (answersResult.isOK() && !answersResult.value().isEmpty()) {
             Log.info("updatePost: Post has answers. Update not allowed.");
-            return Result.error(ErrorCode.CONFLICT);
+            return Result.error(ErrorCode.BAD_REQUEST);
         }
         try {
             if (post.getContent() != null) {
