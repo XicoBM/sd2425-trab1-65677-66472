@@ -248,7 +248,7 @@ public Result<List<String>> getPosts(long timestamp, String sortOrder) {
             }
             hibernate.update(existingPost);
             Log.info("updatePost: Updated post with ID " + postId);
-            return Result.ok();
+            return Result.ok(existingPost);
         } catch (Exception e) {
             e.printStackTrace();
             Log.info("updatePost: Failed to update post.");
