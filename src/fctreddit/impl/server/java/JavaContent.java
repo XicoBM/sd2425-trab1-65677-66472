@@ -108,36 +108,49 @@ public Result<String> createPost(Post post, String userPassword) {
 }
 
 
-    @Override
-    public Result<List<String>> getPosts(long timestamp, String sortOrder) {
-        Log.info("getPosts called with timestamp: " + timestamp + " and sortOrder: " + sortOrder);
+@Override
+public Result<List<String>> getPosts(long timestamp, String sortOrder) {
+    Log.info("getPosts called with timestamp: " + timestamp + " and sortOrder: " + sortOrder);
 
-        try {
-            String query = "SELECT p.postId FROM Post p WHERE p.parentUrl IS NULL";
+    try {
+        String query = "SELECT p.postId FROM Post p WHERE p.parentUrl IS NULL";
 
-            if (timestamp > 0) {
-                query += " AND p.creationTimestamp >= :timestamp";
-            }
-            if (sortOrder != null) {
-                switch (sortOrder) {
-                    case Content.MOST_UP_VOTES:
-                        query += " ORDER BY p.upVote DESC";
-                        break;
-                    case Content.MOST_REPLIES:
-                        query += " ORDER BY SIZE(p.replies) DESC";
-                        break;
-                    default:
-                        Log.warning("Invalid sortOrder: " + sortOrder);
-                        throw new WebApplicationException(Status.BAD_REQUEST);
-                }
-            }
-            List<String> res = hibernate.jpql(query, String.class);
-            return Result.ok(res);
-        } catch (Exception e) {
-            Log.severe("Error retrieving posts: " + e.getMessage());
-            throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
+        if (timestamp > 0) {
+            query += " AND p.creationTimestamp >= :timestamp";
         }
+
+        List<String> postIds = hibernate.jpql(query, String.class);
+
+        if (sortOrder != null) {
+            switch (sortOrder) {
+                case Content.MOST_UP_VOTES:
+                    query += " ORDER BY p.upVote DESC";
+                    postIds = hibernate.jpql(query, String.class);
+                    break;
+
+                case Content.MOST_REPLIES:
+                    long maxTimeout = 0;
+                    postIds.sort((a, b) -> {
+                        List<String> answersB = getPostAnswers(b, maxTimeout).value();
+                        List<String> answersA = getPostAnswers(a, maxTimeout).value();
+                        return Integer.compare(answersB.size(), answersA.size());
+                    });                    
+                    break;
+
+                default:
+                    Log.warning("Invalid sortOrder: " + sortOrder);
+                    throw new WebApplicationException(Status.BAD_REQUEST);
+            }
+        }
+
+        return Result.ok(postIds);
+
+    } catch (Exception e) {
+        Log.severe("Error retrieving posts: " + e.getMessage());
+        throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
     }
+}
+
 
     @Override
     public Result<Post> getPost(String postId) {
@@ -153,41 +166,40 @@ public Result<String> createPost(Post post, String userPassword) {
     }
 
     @Override
-public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
-    Log.info("getPostAnswers called with postId: " + postId);
+    public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
+        Log.info("getPostAnswers called with postId: " + postId);
 
-    if (postId == null || postId.trim().isEmpty()) {
-        Log.info("getPostAnswers: Invalid postId.");
-        return Result.error(ErrorCode.BAD_REQUEST);
-    }
-
-    try (Session session = Hibernate.getInstance().sessionFactory.openSession()) { 
-        Post parentPost = session.get(Post.class, postId);
-        if (parentPost == null) {
-            Log.info("getPostAnswers: Post not found.");
-            return Result.error(ErrorCode.NOT_FOUND);
+        if (postId == null || postId.trim().isEmpty()) {
+            Log.info("getPostAnswers: Invalid postId.");
+            return Result.error(ErrorCode.BAD_REQUEST);
         }
 
-        String serverIp = InetAddress.getLocalHost().getHostAddress();
-        String parentUrl = String.format("http://%s:8081/rest/posts/%s", serverIp, postId);
+        try (Session session = Hibernate.getInstance().sessionFactory.openSession()) { 
+            Post parentPost = session.get(Post.class, postId);
+            if (parentPost == null) {
+                Log.info("getPostAnswers: Post not found.");
+                return Result.error(ErrorCode.NOT_FOUND);
+            }
 
-        // Agora buscamos todos os posts que têm o parentUrl igual ao URL do post pai
-        TypedQuery<String> query = session.createQuery(
-            "SELECT p.postId FROM Post p WHERE p.parentUrl = :parentUrl", 
-            String.class
-        );
-        query.setParameter("parentUrl", parentUrl); // Comparar com o URL completo do post pai
+            String serverIp = InetAddress.getLocalHost().getHostAddress();
+            String parentUrl = String.format("http://%s:8081/rest/posts/%s", serverIp, postId);
 
-        List<String> result = query.getResultList();
-        Log.info("Returning " + result.size() + " answers for postId: " + postId);
+            TypedQuery<String> query = session.createQuery(
+                "SELECT p.postId FROM Post p WHERE p.parentUrl = :parentUrl", 
+                String.class
+            );
+            query.setParameter("parentUrl", parentUrl); // Comparar com o URL completo do post pai
 
-        return Result.ok(result);
-    } catch (Exception e) {
-        Log.severe("getPostAnswers: Unexpected error: " + e.getMessage());
-        e.printStackTrace();
-        return Result.error(ErrorCode.INTERNAL_ERROR);
+            List<String> result = query.getResultList();
+            Log.info("Returning " + result.size() + " answers for postId: " + postId);
+
+            return Result.ok(result);
+        } catch (Exception e) {
+            Log.severe("getPostAnswers: Unexpected error: " + e.getMessage());
+            e.printStackTrace();
+            return Result.error(ErrorCode.INTERNAL_ERROR);
+        }
     }
-}
 
 
     @Override
