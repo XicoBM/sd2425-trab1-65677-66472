@@ -1,5 +1,9 @@
 package fctreddit.impl.server.java;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -26,8 +30,6 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 
-
-
 public class JavaContent implements Content {
     private static Logger Log = Logger.getLogger(JavaContent.class.getName());
     private static final int CONNECTION_TIMEOUT = 10000;
@@ -36,31 +38,29 @@ public class JavaContent implements Content {
     private final Discovery discovery = Discovery.getInstance();
     private final Client client;
 
-    private ContentResources contentResources;
     private Hibernate hibernate;
 
     public JavaContent() {
         hibernate = Hibernate.getInstance();
-        contentResources = new ContentResources();
         ClientConfig config = new ClientConfig();
         config.property(ClientProperties.CONNECT_TIMEOUT, CONNECTION_TIMEOUT);
         config.property(ClientProperties.READ_TIMEOUT, REPLY_TIMEOUT);
         this.client = ClientBuilder.newClient(config);
     }
 
-        private User getUser(String userId) {
+    private User getUser(String userId) {
         try {
             List<String> usersServiceUris = discovery.knownUrisOf("Users");
             if (usersServiceUris.isEmpty()) {
-                return null; 
+                return null;
             }
-    
+
             String usersUri = usersServiceUris.get(0) + "/users/" + userId + "/aux";
-    
+
             WebTarget target = client.target(usersUri);
-    
+
             Response r = target.request().accept(MediaType.APPLICATION_JSON).get();
-    
+
             if (r.getStatus() == 200) {
                 return r.readEntity(User.class);
             } else {
@@ -69,9 +69,59 @@ public class JavaContent implements Content {
         } catch (Exception e) {
             Log.severe("Exception while contacting Users service: " + e.getMessage());
         }
-    
+
         return null;
-    }   
+    }
+
+    private String getPostUrl(String postId) {
+        try {
+            List<String> postsServiceUris = discovery.knownUrisOf("Posts");
+            if (postsServiceUris.isEmpty()) {
+                return null;
+            }
+
+            String postsUri = postsServiceUris.get(0) + "/posts/" + postId;
+
+            WebTarget target = client.target(postsUri);
+
+            Response r = target.request().accept(MediaType.APPLICATION_JSON).get();
+
+            if (r.getStatus() == 200) {
+                return r.readEntity(String.class);
+            } else {
+                Log.warning("Failed to get post URL. Status: " + r.getStatus());
+            }
+        } catch (Exception e) {
+            Log.severe("Exception while contacting Posts service: " + e.getMessage());
+        }
+
+        return null;
+    }
+
+    private String getPostIdByUrl(String postUrl) {
+        try {
+            List<String> postsServiceUris = discovery.knownUrisOf("Posts");
+            if (postsServiceUris.isEmpty()) {
+                return null;
+            }
+
+            String postsUri = postsServiceUris.get(0) + "/posts/" + postUrl;
+
+            WebTarget target = client.target(postsUri);
+
+            Response r = target.request().accept(MediaType.APPLICATION_JSON).get();
+
+            if (r.getStatus() == 200) {
+                return r.readEntity(String.class);
+            } else {
+                Log.warning("Failed to get post ID by URL. Status: " + r.getStatus());
+            }
+        } catch (Exception e) {
+            Log.severe("Exception while contacting Posts service: " + e.getMessage());
+        }
+
+        return null;
+    }
 
     @Override
     public Result<String> createPost(Post post, String userPassword) {
@@ -85,11 +135,11 @@ public class JavaContent implements Content {
             Log.info("createPost: Invalid input.");
             return Result.error(ErrorCode.FORBIDDEN);
         }
-        Post existingPostParent = hibernate.get(Post.class, post.getParentUrl());
+        String parentId = getPostIdByUrl(post.getParentUrl());
+        Post existingPostParent = hibernate.get(Post.class, parentId);
         if (post.getParentUrl() != null && existingPostParent == null) {
             return Result.error(ErrorCode.NOT_FOUND);
         }
-        
 
         try {
             hibernate.persist(post);
@@ -201,7 +251,7 @@ public class JavaContent implements Content {
     public Result<Void> deletePost(String postId, String userPassword) {
         Log.info("deletePost called with postId: " + postId + " and userPassword: " + userPassword);
 
-        Post post = hibernate.get(Post.class, postId);
+        Post post = getPost(postId).value();
         if (post == null) {
             Log.info("deletePost: Post not found.");
             return Result.error(ErrorCode.NOT_FOUND);
@@ -211,21 +261,13 @@ public class JavaContent implements Content {
             Log.info("deletePost: Invalid password.");
             return Result.error(ErrorCode.FORBIDDEN);
         }
-        List<String> postIds = hibernate.jpql("SELECT p.postId FROM Post p WHERE p.parentUrl = :parentUrl", String.class);
-        for (String ids : postIds) {
-            Post var = contentResources.getPost(ids);
-            if (var.getParentUrl() == post.getMediaUrl()) {
-                Log.info("deletePost: Cannot delete post with answers.");
-                return Result.error(ErrorCode.CONFLICT);
-            }
-        }
         if (post.getUpVote() != 0 || post.getDownVote() != 0) {
             Log.info("deletePost: Cannot delete post with votes.");
             return Result.error(ErrorCode.CONFLICT);
         }
-        hibernate.delete(post);
         TypedQuery<Post> query = hibernate.jpql2("SELECT p FROM Post p WHERE p.parentUrl = :parentUrl", Post.class);
-        query.setParameter("parentUrl", postId);
+        String parentUrl = getPostUrl(postId);
+        query.setParameter("parentUrl", parentUrl);
         List<Post> posts = query.getResultList();
         for (Post p : posts) {
             hibernate.delete(p);
@@ -449,5 +491,4 @@ public class JavaContent implements Content {
             return Result.error(ErrorCode.BAD_REQUEST);
         }
     }
-
 }

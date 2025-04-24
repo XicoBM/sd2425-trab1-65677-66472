@@ -2,11 +2,11 @@ package fctreddit.impl.server.discovery;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 public class Discovery {
@@ -20,7 +20,7 @@ public class Discovery {
     private static final String DELIMITER = "\t";
     private static final int DISCOVERY_PERIOD = 1000;
 
-    private final Map<String, Set<String>> uris = new HashMap<>();
+    private final Map<String, Set<String>> uris = new ConcurrentHashMap<>();
     private boolean started = false;
 
     private static Discovery instance;
@@ -32,10 +32,12 @@ public class Discovery {
         return instance;
     }
 
-    private Discovery() {}
+    private Discovery() {
+    }
 
-    public synchronized void start(InetSocketAddress addr, String serviceName, String serviceURI) {
-        if (started) return;
+    public void start(InetSocketAddress addr, String serviceName, String serviceURI) {
+        if (started)
+            return;
         started = true;
 
         Log.info(String.format("Starting Discovery announcements on: %s for: %s -> %s", addr, serviceName, serviceURI));
@@ -47,16 +49,23 @@ public class Discovery {
             MulticastSocket ms = new MulticastSocket(addr.getPort());
 
             // Solução robusta para interfaces de rede
-            NetworkInterface nif = NetworkInterface.networkInterfaces()
-                .filter(ni -> {
-                    try {
-                        return ni.supportsMulticast() && ni.isUp();
-                    } catch (Exception e) {
-                        return false;
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            NetworkInterface nif = null;
+
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface ni = interfaces.nextElement();
+                try {
+                    if (ni.supportsMulticast() && ni.isUp()) {
+                        nif = ni;
+                        break;
                     }
-                })
-                .findFirst()
-                .orElseThrow(() -> new IOException("No suitable network interface found"));
+                } catch (Exception ignored) {
+                }
+            }
+
+            if (nif == null) {
+                throw new IOException("No suitable network interface found");
+            }
 
             ms.joinGroup(addr, nif);
 
@@ -87,7 +96,7 @@ public class Discovery {
                             String uri = parts[1];
 
                             synchronized (uris) {
-                                uris.computeIfAbsent(name, k -> new HashSet<>()).add(uri);
+                                uris.computeIfAbsent(name, k -> ConcurrentHashMap.newKeySet()).add(uri);
                             }
 
                             Log.info(String.format("Received announcement: %s -> %s", name, uri));
