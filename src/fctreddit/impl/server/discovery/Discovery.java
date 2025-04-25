@@ -2,10 +2,10 @@ package fctreddit.impl.server.discovery;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.net.NetworkInterface;
+
 import java.net.SocketException;
 import java.net.URI;
 import java.net.UnknownHostException;
@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+
 import java.util.logging.Logger;
 
 /**
@@ -43,11 +44,13 @@ public class Discovery {
     // Map for the locks to synchronize access to the received announcements
     private Map<String, Object> locks = new ConcurrentHashMap<>();
 
+
     // The pre-agreed multicast endpoint assigned to perform discovery.
     static final public InetSocketAddress DISCOVERY_ADDR = new InetSocketAddress("226.226.226.226", 2266);
     static final int DISCOVERY_ANNOUNCE_PERIOD = 1000;
     static final int DISCOVERY_RETRY_TIMEOUT = 5000;
     static final int MAX_DATAGRAM_SIZE = 65536;
+
 
     // Used to separate the two fields that make up a service announcement.
     private static final String DELIMITER = "\t";
@@ -78,10 +81,12 @@ public class Discovery {
             throw new RuntimeException("A multicast address has to be provided.");
         }
 
+
         this.ms = new MulticastSocket(addr.getPort());
         NetworkInterface netIf = NetworkInterface.getNetworkInterfaces().nextElement(); // Ou escolhe explicitamente
                                                                                         // "eth0"
         ms.joinGroup(addr, netIf);
+
 
     }
 
@@ -98,6 +103,7 @@ public class Discovery {
         }
         return instance;
     }
+
 
     /**
      * Starts sending service announcements at regular intervals...
@@ -130,6 +136,7 @@ public class Discovery {
                 e.printStackTrace();
             }
         }
+
 
         // Start thread to collect announcements received from the network.
         new Thread(() -> {

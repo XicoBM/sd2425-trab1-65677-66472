@@ -3,6 +3,7 @@ package fctreddit.impl.server.java;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -29,8 +30,6 @@ import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
-
-
 
 public class JavaContent implements Content {
     private static Logger Log = Logger.getLogger(JavaContent.class.getName());
@@ -61,19 +60,19 @@ public class JavaContent implements Content {
         this.client = ClientBuilder.newClient(config);
     }
 
-        private User getUser(String userId) {
+    private User getUser(String userId) {
         try {
             List<String> usersServiceUris = discovery.knownUrisAsStringsOf("Users", 1);
             if (usersServiceUris.isEmpty()) {
-                return null; 
+                return null;
             }
-    
+
             String usersUri = usersServiceUris.get(0) + "/users/" + userId + "/aux";
-    
+
             WebTarget target = client.target(usersUri);
-    
+
             Response r = target.request().accept(MediaType.APPLICATION_JSON).get();
-    
+
             if (r.getStatus() == 200) {
                 return r.readEntity(User.class);
             } else {
@@ -82,9 +81,60 @@ public class JavaContent implements Content {
         } catch (Exception e) {
             Log.severe("Exception while contacting Users service: " + e.getMessage());
         }
-    
+
         return null;
-    }   
+    }
+
+    private String getPostUrl(String postId) {
+        try {
+            List<String> postsServiceUris = discovery.knownUrisOf("Posts");
+            if (postsServiceUris.isEmpty()) {
+                return null;
+            }
+
+            String postsUri = postsServiceUris.get(0) + "/posts/" + postId;
+
+            WebTarget target = client.target(postsUri);
+
+            Response r = target.request().accept(MediaType.APPLICATION_JSON).get();
+
+            if (r.getStatus() == 200) {
+                return r.readEntity(String.class);
+            } else {
+                Log.warning("Failed to get post URL. Status: " + r.getStatus());
+            }
+        } catch (Exception e) {
+            Log.severe("Exception while contacting Posts service: " + e.getMessage());
+        }
+
+        return null;
+    }
+
+    private String getPostIdByUrl(String postUrl) {
+        try {
+            List<String> postsServiceUris = discovery.knownUrisOf("Posts");
+            if (postsServiceUris.isEmpty()) {
+                return null;
+            }
+
+            String postsUri = postsServiceUris.get(0) + "/posts/" + postUrl;
+
+            WebTarget target = client.target(postsUri);
+
+            Response r = target.request().accept(MediaType.APPLICATION_JSON).get();
+
+            if (r.getStatus() == 200) {
+                return r.readEntity(String.class);
+            } else {
+                Log.warning("Failed to get post ID by URL. Status: " + r.getStatus());
+            }
+        } catch (Exception e) {
+            Log.severe("Exception while contacting Posts service: " + e.getMessage());
+        }
+
+        return null;
+    }
+
 
 @Override
 public Result<String> createPost(Post post, String userPassword) {
@@ -105,6 +155,7 @@ public Result<String> createPost(Post post, String userPassword) {
             Log.info("createPost: Parent post not found.");
             return Result.error(ErrorCode.NOT_FOUND);
         }
+
     }
     
     try {
@@ -242,7 +293,7 @@ public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
     public Result<Void> deletePost(String postId, String userPassword) {
         Log.info("deletePost called with postId: " + postId + " and userPassword: " + userPassword);
 
-        Post post = hibernate.get(Post.class, postId);
+        Post post = getPost(postId).value();
         if (post == null) {
             Log.info("deletePost: Post not found.");
             return Result.error(ErrorCode.NOT_FOUND);
@@ -252,6 +303,7 @@ public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
             Log.info("deletePost: Invalid password.");
             return Result.error(ErrorCode.FORBIDDEN);
         }
+
         List<String> postIds = hibernate.jpql("SELECT p.postId FROM Post p WHERE p.parentUrl = :parentUrl", String.class);
         for (String ids : postIds) {
             /**
@@ -261,13 +313,14 @@ public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
                 return Result.error(ErrorCode.CONFLICT);
             }*/
         }
+
         if (post.getUpVote() != 0 || post.getDownVote() != 0) {
             Log.info("deletePost: Cannot delete post with votes.");
             return Result.error(ErrorCode.CONFLICT);
         }
-        hibernate.delete(post);
         TypedQuery<Post> query = hibernate.jpql2("SELECT p FROM Post p WHERE p.parentUrl = :parentUrl", Post.class);
-        query.setParameter("parentUrl", postId);
+        String parentUrl = getPostUrl(postId);
+        query.setParameter("parentUrl", parentUrl);
         List<Post> posts = query.getResultList();
         for (Post p : posts) {
             hibernate.delete(p);
@@ -491,5 +544,4 @@ public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
             return Result.error(ErrorCode.BAD_REQUEST);
         }
     }
-
 }

@@ -14,6 +14,7 @@ public class ImagesServer {
     private static final String GRPC_CTX = "/grpc";
     private static final String SERVER_BASE_URI = "grpc://%s:%s%s";
     private static final String SERVICE = "Image";
+
     private static Logger Log = Logger.getLogger(ImagesServer.class.getName());
 
     public static void main(String[] args) throws Exception {
@@ -36,4 +37,3 @@ public class ImagesServer {
 		System.out.println("Image gRPC Server started successfully");
 		server.start().awaitTermination();
 	}
-}

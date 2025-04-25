@@ -1,6 +1,8 @@
 package fctreddit.api;
 
+
 import jakarta.persistence.Column;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 
@@ -29,7 +31,7 @@ public class Post {
 	}
 
 	public Post(String authorId, String content) {
-		this.postId = null;
+		this.postId = UUID.randomUUID().toString();
 		this.authorId = authorId;
 		this.creationTimestamp = System.currentTimeMillis();
 		this.content = content;
@@ -49,11 +51,11 @@ public class Post {
 		this.mediaUrl = mediaUrl;
 	}
 
-	public Post(String postId, String authorId, long creationTime, String content, String mediaUrl, String parentUrl,
+	public Post(String authorId, String content, String mediaUrl, String parentUrl,
 			int upVote, int downVote) {
-		this.postId = postId;
+		this.postId = UUID.randomUUID().toString();
 		this.authorId = authorId;
-		this.creationTimestamp = creationTime;
+		this.creationTimestamp = System.currentTimeMillis();
 		this.content = content;
 		this.mediaUrl = mediaUrl;
 		this.parentUrl = parentUrl;
@@ -63,10 +65,6 @@ public class Post {
 
 	public String getPostId() {
 		return postId;
-	}
-
-	public void setPostId(String postId) {
-		this.postId = postId;
 	}
 
 	public String getAuthorId() {

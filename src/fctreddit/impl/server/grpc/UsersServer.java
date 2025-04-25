@@ -14,6 +14,7 @@ public class UsersServer {
     private static final String GRPC_CTX = "/grpc";
     private static final String SERVER_BASE_URI = "grpc://%s:%s%s";
     private static final String SERVICE = "Users";
+
     private static Logger Log = Logger.getLogger(UsersServer.class.getName());
 
     public static void main(String[] args) throws Exception {

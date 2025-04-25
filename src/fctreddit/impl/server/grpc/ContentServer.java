@@ -14,6 +14,7 @@ public class ContentServer {
     private static final String GRPC_CTX = "/grpc";
     private static final String SERVER_BASE_URI = "grpc://%s:%s%s";
     private static final String SERVICE = "Content";
+
     private static Logger Log = Logger.getLogger(ContentServer.class.getName());
 
     public static void main(String[] args) throws Exception {
@@ -35,5 +36,5 @@ public class ContentServer {
 		Log.fine("Content gRPC Server started successfully");
 		System.out.println("Content gRPC Server started successfully");
 		server.start().awaitTermination();
-	}
+	
 }
