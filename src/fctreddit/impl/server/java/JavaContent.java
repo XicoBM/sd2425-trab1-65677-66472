@@ -1,19 +1,20 @@
 package fctreddit.impl.server.java;
 
+import java.io.IOException;
 import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.net.InetSocketAddress;
+
 import java.util.List;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
+import org.hibernate.Session;
 
 import fctreddit.api.java.Content;
 import fctreddit.api.java.Result;
 import fctreddit.api.java.Result.ErrorCode;
-import fctreddit.impl.server.rest.ContentResources;
 import fctreddit.impl.server.discovery.Discovery;
 import fctreddit.impl.server.persistence.Hibernate;
 import fctreddit.api.Post;
@@ -34,8 +35,19 @@ public class JavaContent implements Content {
     private static Logger Log = Logger.getLogger(JavaContent.class.getName());
     private static final int CONNECTION_TIMEOUT = 10000;
     private static final int REPLY_TIMEOUT = 3000;
+    private static final InetSocketAddress DISCOVERY_ADDR = new InetSocketAddress("226.226.226.226", 2266);
 
-    private final Discovery discovery = Discovery.getInstance();
+    private final Discovery discovery;
+
+    {
+        Discovery tempDiscovery = null;
+        try {
+            tempDiscovery = new Discovery(DISCOVERY_ADDR);
+        } catch (IOException e) {
+            Log.severe("Failed to initialize Discovery: " + e.getMessage());
+        }
+        discovery = tempDiscovery;
+    }
     private final Client client;
 
     private Hibernate hibernate;
@@ -50,7 +62,7 @@ public class JavaContent implements Content {
 
     private User getUser(String userId) {
         try {
-            List<String> usersServiceUris = discovery.knownUrisOf("Users");
+            List<String> usersServiceUris = discovery.knownUrisAsStringsOf("Users", 1);
             if (usersServiceUris.isEmpty()) {
                 return null;
             }
@@ -123,34 +135,41 @@ public class JavaContent implements Content {
         return null;
     }
 
-    @Override
-    public Result<String> createPost(Post post, String userPassword) {
-        Log.info("createPost called with userId: " + post.getAuthorId());
-        User user = getUser(post.getAuthorId());
-        if (user == null) {
-            Log.info("createPost: User not found.");
-            return Result.error(ErrorCode.NOT_FOUND);
-        }
-        if (!user.getPassword().equals(userPassword)) {
-            Log.info("createPost: Invalid input.");
-            return Result.error(ErrorCode.FORBIDDEN);
-        }
-        String parentId = getPostIdByUrl(post.getParentUrl());
-        Post existingPostParent = hibernate.get(Post.class, parentId);
-        if (post.getParentUrl() != null && existingPostParent == null) {
+
+@Override
+public Result<String> createPost(Post post, String userPassword) {
+    Log.info("createPost called with userId: " + post.getAuthorId());
+    User user = getUser(post.getAuthorId());
+    if (user == null) {
+        Log.info("createPost: User not found.");
+        return Result.error(ErrorCode.NOT_FOUND);
+    }
+    if (!user.getPassword().equals(userPassword)) {
+        Log.info("createPost: Invalid input.");
+        return Result.error(ErrorCode.FORBIDDEN);
+    }
+    if (post.getParentUrl() != null) {
+        String parentId = post.getParentUrl().substring(post.getParentUrl().lastIndexOf('/') + 1);
+        Post parentPost = hibernate.get(Post.class, parentId);
+        if (parentPost == null) {
+            Log.info("createPost: Parent post not found.");
             return Result.error(ErrorCode.NOT_FOUND);
         }
 
-        try {
-            hibernate.persist(post);
-            String postId = post.getPostId();
-            return Result.ok(postId);
-        } catch (Exception e) {
-            e.printStackTrace();
-            Log.info("createPost: Failed to write post.");
-            return Result.error(ErrorCode.BAD_REQUEST);
-        }
     }
+    
+    try {
+        String postId = UUID.randomUUID().toString();
+        post.setPostId(postId); 
+        hibernate.persist(post);
+        return Result.ok(postId);
+    } catch (Exception e) {
+        e.printStackTrace();
+        Log.info("createPost: Failed to write post.");
+        return Result.error(ErrorCode.INTERNAL_ERROR);
+    }
+}
+
 
     @Override
     public Result<List<String>> getPosts(long timestamp, String sortOrder) {
@@ -197,19 +216,42 @@ public class JavaContent implements Content {
     }
 
     @Override
-    public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
-        Log.info("getPostAnswers called with postId: " + postId);
+public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
+    Log.info("getPostAnswers called with postId: " + postId);
 
-        Post post = hibernate.get(Post.class, postId);
-        if (post == null) {
+    if (postId == null || postId.trim().isEmpty()) {
+        Log.info("getPostAnswers: Invalid postId.");
+        return Result.error(ErrorCode.BAD_REQUEST);
+    }
+
+    try (Session session = Hibernate.getInstance().sessionFactory.openSession()) { 
+        Post parentPost = session.get(Post.class, postId);
+        if (parentPost == null) {
             Log.info("getPostAnswers: Post not found.");
             return Result.error(ErrorCode.NOT_FOUND);
         }
-        TypedQuery<String> query = hibernate.jpql2("SELECT p.postId FROM Post p WHERE p.parentUrl = :parentUrl",
-                String.class);
-        List<String> res = query.setParameter("parentUrl", postId).getResultList();
-        return Result.ok(res);
+
+        String serverIp = InetAddress.getLocalHost().getHostAddress();
+        String parentUrl = String.format("http://%s:8081/rest/posts/%s", serverIp, postId);
+
+        // Agora buscamos todos os posts que têm o parentUrl igual ao URL do post pai
+        TypedQuery<String> query = session.createQuery(
+            "SELECT p.postId FROM Post p WHERE p.parentUrl = :parentUrl", 
+            String.class
+        );
+        query.setParameter("parentUrl", parentUrl); // Comparar com o URL completo do post pai
+
+        List<String> result = query.getResultList();
+        Log.info("Returning " + result.size() + " answers for postId: " + postId);
+
+        return Result.ok(result);
+    } catch (Exception e) {
+        Log.severe("getPostAnswers: Unexpected error: " + e.getMessage());
+        e.printStackTrace();
+        return Result.error(ErrorCode.INTERNAL_ERROR);
     }
+}
+
 
     @Override
     public Result<Post> updatePost(String postId, String userPassword, Post post) {
@@ -261,6 +303,17 @@ public class JavaContent implements Content {
             Log.info("deletePost: Invalid password.");
             return Result.error(ErrorCode.FORBIDDEN);
         }
+
+        List<String> postIds = hibernate.jpql("SELECT p.postId FROM Post p WHERE p.parentUrl = :parentUrl", String.class);
+        for (String ids : postIds) {
+            /**
+            Post var = contentResources.getPost(ids);
+            if (var.getParentUrl() == post.getMediaUrl()) {
+                Log.info("deletePost: Cannot delete post with answers.");
+                return Result.error(ErrorCode.CONFLICT);
+            }*/
+        }
+
         if (post.getUpVote() != 0 || post.getDownVote() != 0) {
             Log.info("deletePost: Cannot delete post with votes.");
             return Result.error(ErrorCode.CONFLICT);

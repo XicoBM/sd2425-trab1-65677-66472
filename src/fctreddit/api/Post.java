@@ -1,6 +1,7 @@
 package fctreddit.api;
 
-import java.util.UUID;
+
+import jakarta.persistence.Column;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -15,7 +16,10 @@ public class Post {
 	private String postId;
 	private String authorId;
 	private long creationTimestamp;
+	
+	@Column(length = 1000)
 	private String content;
+
 	private String mediaUrl;
 	private String parentUrl; // This should be null when this is a top level post.
 	private int upVote;
