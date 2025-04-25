@@ -36,7 +36,8 @@ public class ContentServer {
 
             Log.info(String.format("%s Server ready @ %s\n", SERVICE, serverURI));
 
-            Discovery.getInstance().start(DISCOVERY_ADDR, SERVICE, serverURI);
+            Discovery discovery = new Discovery(DISCOVERY_ADDR, SERVICE, serverURI);
+            discovery.start();
             Thread.currentThread().join();
         } catch (Exception e) {
             Log.severe(e.getMessage());

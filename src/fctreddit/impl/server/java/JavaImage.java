@@ -17,6 +17,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
@@ -29,8 +30,19 @@ public class JavaImage implements Image {
     private static final String IMAGE_DIR = "imageFiles";
     private static final int CONNECTION_TIMEOUT = 10000;
     private static final int REPLY_TIMEOUT = 3000;
+    private static final InetSocketAddress DISCOVERY_ADDR = new InetSocketAddress("226.226.226.226", 2266);
 
-    private final Discovery discovery = Discovery.getInstance();
+    private final Discovery discovery;
+
+    {
+        Discovery tempDiscovery = null;
+        try {
+            tempDiscovery = new Discovery(DISCOVERY_ADDR);
+        } catch (IOException e) {
+            Log.severe("Failed to initialize Discovery: " + e.getMessage());
+        }
+        discovery = tempDiscovery;
+    }
     private final Client client;
 
     public JavaImage() {
@@ -47,7 +59,7 @@ public class JavaImage implements Image {
 
     private User getUser(String userId) {
         try {
-            List<String> usersServiceUris = discovery.knownUrisOf("Users");
+            List<String> usersServiceUris = discovery.knownUrisAsStringsOf("Users", 1);
             if (usersServiceUris.isEmpty()) {
                 return null; 
             }
