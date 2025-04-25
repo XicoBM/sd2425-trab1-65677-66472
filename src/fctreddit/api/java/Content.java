@@ -178,4 +178,26 @@ public interface Content {
 	 */
 	public Result<Integer> getDownVotes(String postId);
 
+
+	/**
+ 	* Sets the authorId to null in all posts authored by the specified user.
+	* Used when a user account is deleted.
+	* 
+	* @param userId the identifier of the user whose posts' authorId should be nullified
+	* @return NO_CONTENT in case of success;
+	*         NOT_FOUND if no posts are found;
+	*         INTERNAL_SERVER_ERROR otherwise
+	*/
+	public Result<Void> nullifyPostAuthors(String userId);
+
+	/**
+ 	* Deletes all votes (upvotes and downvotes) made by the specified user.
+ 	* Used when a user account is deleted.
+ 	* 
+ 	* @param userId the identifier of the user whose votes should be deleted
+ 	* @return NO_CONTENT in case of success;
+ 	*         NOT_FOUND if no votes were found;
+ 	*         INTERNAL_SERVER_ERROR otherwise
+ 	*/
+	public Result<Void> deleteVotesFromUser(String userId);
 }

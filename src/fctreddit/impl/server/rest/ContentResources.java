@@ -3,6 +3,7 @@ package fctreddit.impl.server.rest;
 import java.util.List;
 import java.util.logging.Logger;
 
+import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response.Status;
 
@@ -92,6 +93,19 @@ public class ContentResources implements RestContent {
         Log.info("getDownVotes called with postId: " + postId);
         return handleResult(impl.getDownVotes(postId), "Failed to get downvotes for post with ID: " + postId);
     }
+
+    @Override
+    public void nullifyPostAuthors(String userId) {
+        Log.info("nullifyPostAuthors called with userId: " + userId);
+        handleResult(impl.nullifyPostAuthors(userId), "Failed to nullify authors for posts by user with ID: " + userId);
+    }
+   
+    @Override
+    public void deleteVotesFromUser(String userId) {
+        Log.info("deleteVotesFromUser called with userId: " + userId);
+        handleResult(impl.deleteVotesFromUser(userId), "Failed to delete votes for user with ID: " + userId);
+    }
+
 
     private <T> T handleResult(Result<T> result, String errorMessage) {
         if (!result.isOK()) {

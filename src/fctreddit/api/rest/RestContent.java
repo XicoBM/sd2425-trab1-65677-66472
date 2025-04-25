@@ -230,4 +230,31 @@ public interface RestContent {
 	@Consumes(MediaType.APPLICATION_JSON)
 	public Integer getDownVotes(@PathParam(POSTID) String postId);
 
+
+	/**
+ * Sets the authorId to null in all posts authored by the specified user.
+ * Used when a user account is deleted.
+ * 
+ * @param userId the identifier of the user whose posts' authorId should be nullified
+ * @return NO_CONTENT in case of success;
+ *         NOT_FOUND if no posts are found;
+ *         INTERNAL_SERVER_ERROR otherwise
+ */
+@POST
+@Path("/nullify-author/{" + USERID + "}")
+public void nullifyPostAuthors(@PathParam(USERID) String userId);
+
+/**
+ * Deletes all votes (upvotes and downvotes) made by the specified user.
+ * Used when a user account is deleted.
+ * 
+ * @param userId the identifier of the user whose votes should be deleted
+ * @return NO_CONTENT in case of success;
+ *         NOT_FOUND if no votes were found;
+ *         INTERNAL_SERVER_ERROR otherwise
+ */
+@DELETE
+@Path("/delete-votes/{" + USERID + "}")
+public void deleteVotesFromUser(@PathParam(USERID) String userId);
+
 }

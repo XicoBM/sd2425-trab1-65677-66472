@@ -1,23 +1,93 @@
 package fctreddit.impl.server.java;
 
 import java.util.logging.Logger;
+import java.net.URI;
 import java.util.List;
 
 import fctreddit.api.User;
 import fctreddit.api.java.Users;
+import fctreddit.clients.rest.RestImagesClient;
+import fctreddit.clients.rest.RestPostsClient;
 import fctreddit.api.java.Result;
 import fctreddit.api.java.Result.ErrorCode;
+import fctreddit.impl.server.discovery.Discovery;
 import fctreddit.impl.server.persistence.Hibernate;
 
 public class JavaUsers implements Users {
 
     private static Logger Log = Logger.getLogger(JavaUsers.class.getName());
 
+    private final Discovery discovery = Discovery.getInstance();
+
+    private final RestPostsClient restPostsClient; 
+    private final RestImagesClient restImagesClient; 
+
     private Hibernate hibernate;
 
     public JavaUsers() {
         hibernate = Hibernate.getInstance();
+
+        List<String> contentServiceUris = discovery.knownUrisOf("Content");
+        if (contentServiceUris.isEmpty()) {
+            throw new IllegalStateException("No known URIs for Content service found");
+        }
+        URI contentUri = URI.create(contentServiceUris.get(0));
+        this.restPostsClient = new RestPostsClient(contentUri);
+
+        List<String> imagesServiceUris = discovery.knownUrisOf("Image");
+        if (imagesServiceUris.isEmpty()) {
+            throw new IllegalStateException("No known URIs for Images service found");
+        }
+        URI imagesUri = URI.create(imagesServiceUris.get(0));
+        this.restImagesClient = new RestImagesClient(imagesUri);  
     }
+
+    private void deleteImage(String imageId, String userId, String password) {
+        Result<Void> result = restImagesClient.deleteImage(userId, imageId, password);
+
+        if (result == null || !result.isOK()) {
+            if (result != null && result.error() == ErrorCode.NOT_FOUND) {
+                Log.info("Image does not exist.");
+            } else {
+                Log.severe("Failed to delete image with ID: " + imageId);
+            }
+        } else {
+            Log.info("Image deleted successfully.");
+        }
+    }
+
+    private void deleteVotesFromUser(String userId) {
+        Result<Void> result = restPostsClient.deleteVotesFromUser(userId);
+
+        if (result == null || !result.isOK()) {
+            if (result != null && result.error() == ErrorCode.NOT_FOUND) {
+                Log.info("Votes do not exist.");
+            } else {
+                Log.severe("Failed to delete votes for user with ID: " + userId);
+            }
+        } else {
+            Log.info("Votes deleted successfully.");
+        }
+    }
+
+    private void nullifyPostAuthors(String userId) {
+        Log.info("========== NULLIFY POST AUTHORS ==========");
+        Log.info(">>> [CALL] nullifyPostAuthors called for user: " + userId);
+    
+        Result<Void> result = restPostsClient.nullifyPostAuthors(userId);
+    
+        if (result == null || !result.isOK()) {
+            if (result != null && result.error() == ErrorCode.NOT_FOUND) {
+                Log.warning(">>> [RESULT] No posts found to nullify for user: " + userId);
+            } else {
+                Log.severe(">>> [ERROR] Failed to nullify posts for user: " + userId);
+            }
+        } else {
+            Log.info(">>> [SUCCESS] All posts by user " + userId + " were successfully nullified.");
+        }
+        Log.info("==========================================");
+    }
+    
 
     @Override
     public Result<String> createUser(User user) {
@@ -159,6 +229,14 @@ public class JavaUsers implements Users {
             Log.info("Incorrect password.");
             return Result.error(ErrorCode.FORBIDDEN);
         }
+
+        deleteVotesFromUser(userId);
+        nullifyPostAuthors(userId);
+        if (user.getAvatarUrl() != null) {
+            String imageUrl = user.getAvatarUrl();
+            String id = imageUrl.substring(imageUrl.lastIndexOf('/') + 1, imageUrl.lastIndexOf('.'));
+            deleteImage(id, userId, password);
+        }     
 
         try {
             hibernate.delete(user);

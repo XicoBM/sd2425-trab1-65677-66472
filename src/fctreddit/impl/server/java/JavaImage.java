@@ -4,20 +4,14 @@ import fctreddit.api.User;
 import fctreddit.api.java.Image;
 import fctreddit.api.java.Result;
 import fctreddit.api.java.Result.ErrorCode;
+import fctreddit.clients.rest.RestUsersClient;
 import fctreddit.impl.server.discovery.Discovery;
-import jakarta.ws.rs.client.Client;
-import jakarta.ws.rs.client.ClientBuilder;
-import jakarta.ws.rs.client.WebTarget;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
-import org.glassfish.jersey.client.ClientConfig;
-import org.glassfish.jersey.client.ClientProperties;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
@@ -28,59 +22,43 @@ public class JavaImage implements Image {
 
     private static Logger Log = Logger.getLogger(JavaImage.class.getName());
     private static final String IMAGE_DIR = "imageFiles";
-    private static final int CONNECTION_TIMEOUT = 10000;
-    private static final int REPLY_TIMEOUT = 3000;
-    private static final InetSocketAddress DISCOVERY_ADDR = new InetSocketAddress("226.226.226.226", 2266);
 
-    private final Discovery discovery;
+    private final Discovery discovery = Discovery.getInstance();
 
-    {
-        Discovery tempDiscovery = null;
-        try {
-            tempDiscovery = new Discovery(DISCOVERY_ADDR);
-        } catch (IOException e) {
-            Log.severe("Failed to initialize Discovery: " + e.getMessage());
-        }
-        discovery = tempDiscovery;
-    }
-    private final Client client;
+    private final RestUsersClient restUsersClient; 
+
 
     public JavaImage() {
+        List<String> usersServiceUris = discovery.knownUrisOf("Users");
+        if (usersServiceUris.isEmpty()) {
+            throw new IllegalStateException("No known URIs for Users service found");
+        }
+        URI usersUri = URI.create(usersServiceUris.get(0));
+        this.restUsersClient = new RestUsersClient(usersUri);
+    
+        Log.info("RestUsersClient created with URI: " + usersUri.toString());
+    
         File dir = new File(IMAGE_DIR);
         if (!dir.exists()) {
             dir.mkdir();
         }
-
-        ClientConfig config = new ClientConfig();
-        config.property(ClientProperties.CONNECT_TIMEOUT, CONNECTION_TIMEOUT);
-        config.property(ClientProperties.READ_TIMEOUT, REPLY_TIMEOUT);
-        this.client = ClientBuilder.newClient(config);
     }
 
     private User getUser(String userId) {
-        try {
-            List<String> usersServiceUris = discovery.knownUrisAsStringsOf("Users", 1);
-            if (usersServiceUris.isEmpty()) {
-                return null; 
-            }
+        Result<User> result = restUsersClient.getUserAux(userId);
     
-            String usersUri = usersServiceUris.get(0) + "/users/" + userId + "/aux";
-    
-            WebTarget target = client.target(usersUri);
-    
-            Response r = target.request().accept(MediaType.APPLICATION_JSON).get();
-    
-            if (r.getStatus() == 200) {
-                return r.readEntity(User.class);
+        if (result == null || !result.isOK()) {
+            if (result != null && result.error() == ErrorCode.NOT_FOUND) {
+                Log.info("User does not exist.");
             } else {
-                Log.warning("Failed to get user. Status: " + r.getStatus());
+                Log.severe("Failed to retrieve user with ID: " + userId);
             }
-        } catch (Exception e) {
-            Log.severe("Exception while contacting Users service: " + e.getMessage());
+            return null;
         }
     
-        return null;
-    }    
+        return result.value();
+    }
+    
     
 
 @Override

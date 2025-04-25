@@ -1,20 +1,18 @@
 package fctreddit.impl.server.java;
 
-import java.io.IOException;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
-
+import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
 
-import org.glassfish.jersey.client.ClientConfig;
-import org.glassfish.jersey.client.ClientProperties;
 import org.hibernate.Session;
 
 import fctreddit.api.java.Content;
 import fctreddit.api.java.Result;
 import fctreddit.api.java.Result.ErrorCode;
+import fctreddit.clients.rest.RestImagesClient;
+import fctreddit.clients.rest.RestUsersClient;
 import fctreddit.impl.server.discovery.Discovery;
 import fctreddit.impl.server.persistence.Hibernate;
 import fctreddit.api.Post;
@@ -25,117 +23,69 @@ import jakarta.persistence.NoResultException;
 import jakarta.persistence.PersistenceException;
 import jakarta.persistence.TypedQuery;
 import jakarta.ws.rs.WebApplicationException;
-import jakarta.ws.rs.client.Client;
-import jakarta.ws.rs.client.ClientBuilder;
-import jakarta.ws.rs.client.WebTarget;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
+
+
 
 public class JavaContent implements Content {
     private static Logger Log = Logger.getLogger(JavaContent.class.getName());
-    private static final int CONNECTION_TIMEOUT = 10000;
-    private static final int REPLY_TIMEOUT = 3000;
-    private static final InetSocketAddress DISCOVERY_ADDR = new InetSocketAddress("226.226.226.226", 2266);
 
-    private final Discovery discovery;
+    private final Discovery discovery = Discovery.getInstance();
 
-    {
-        Discovery tempDiscovery = null;
-        try {
-            tempDiscovery = new Discovery(DISCOVERY_ADDR);
-        } catch (IOException e) {
-            Log.severe("Failed to initialize Discovery: " + e.getMessage());
-        }
-        discovery = tempDiscovery;
-    }
-    private final Client client;
+    private final RestUsersClient restUsersClient; 
+    private final RestImagesClient restImagesClient; 
 
     private Hibernate hibernate;
 
-    public JavaContent() {
-        hibernate = Hibernate.getInstance();
-        ClientConfig config = new ClientConfig();
-        config.property(ClientProperties.CONNECT_TIMEOUT, CONNECTION_TIMEOUT);
-        config.property(ClientProperties.READ_TIMEOUT, REPLY_TIMEOUT);
-        this.client = ClientBuilder.newClient(config);
+public JavaContent() {
+    this.hibernate = Hibernate.getInstance();
+
+    List<String> usersServiceUris = discovery.knownUrisOf("Users");
+    if (usersServiceUris == null || usersServiceUris.isEmpty()) {
+        throw new IllegalStateException("No known URIs for Users service found");
     }
+    URI usersUri = URI.create(usersServiceUris.get(0));
+    this.restUsersClient = new RestUsersClient(usersUri);
+    Log.info("RestUsersClient created with URI: " + usersUri);
+
+    List<String> imagesServiceUris = discovery.knownUrisOf("Image");
+    if (imagesServiceUris == null || imagesServiceUris.isEmpty()) {
+        throw new IllegalStateException("No known URIs for Images service found");
+    }
+    URI imagesUri = URI.create(imagesServiceUris.get(0));
+    this.restImagesClient = new RestImagesClient(imagesUri);  
+    Log.info("RestImagesClient created with URI: " + imagesUri);
+}
 
     private User getUser(String userId) {
-        try {
-            List<String> usersServiceUris = discovery.knownUrisAsStringsOf("Users", 1);
-            if (usersServiceUris.isEmpty()) {
-                return null;
-            }
+    Result<User> result = restUsersClient.getUserAux(userId);
 
-            String usersUri = usersServiceUris.get(0) + "/users/" + userId + "/aux";
-
-            WebTarget target = client.target(usersUri);
-
-            Response r = target.request().accept(MediaType.APPLICATION_JSON).get();
-
-            if (r.getStatus() == 200) {
-                return r.readEntity(User.class);
-            } else {
-                Log.warning("Failed to get user. Status: " + r.getStatus());
-            }
-        } catch (Exception e) {
-            Log.severe("Exception while contacting Users service: " + e.getMessage());
+    if (result == null || !result.isOK()) {
+        if (result != null && result.error() == ErrorCode.NOT_FOUND) {
+            Log.info("User does not exist.");
+        } else {
+            Log.severe("Failed to retrieve user with ID: " + userId);
         }
-
         return null;
     }
 
-    private String getPostUrl(String postId) {
-        try {
-            List<String> postsServiceUris = discovery.knownUrisOf("Posts");
-            if (postsServiceUris.isEmpty()) {
-                return null;
-            }
+    return result.value();
+}   
 
-            String postsUri = postsServiceUris.get(0) + "/posts/" + postId;
+    
+    private void deleteImage(String imageId, String userId, String password) {
+        Result<Void> result = restImagesClient.deleteImage(userId, imageId, password);
 
-            WebTarget target = client.target(postsUri);
-
-            Response r = target.request().accept(MediaType.APPLICATION_JSON).get();
-
-            if (r.getStatus() == 200) {
-                return r.readEntity(String.class);
+        if (result == null || !result.isOK()) {
+            if (result != null && result.error() == ErrorCode.NOT_FOUND) {
+                Log.info("Image does not exist.");
             } else {
-                Log.warning("Failed to get post URL. Status: " + r.getStatus());
+                Log.severe("Failed to delete image with ID: " + imageId);
             }
-        } catch (Exception e) {
-            Log.severe("Exception while contacting Posts service: " + e.getMessage());
+        } else {
+            Log.info("Image deleted successfully.");
         }
-
-        return null;
     }
-
-    private String getPostIdByUrl(String postUrl) {
-        try {
-            List<String> postsServiceUris = discovery.knownUrisOf("Posts");
-            if (postsServiceUris.isEmpty()) {
-                return null;
-            }
-
-            String postsUri = postsServiceUris.get(0) + "/posts/" + postUrl;
-
-            WebTarget target = client.target(postsUri);
-
-            Response r = target.request().accept(MediaType.APPLICATION_JSON).get();
-
-            if (r.getStatus() == 200) {
-                return r.readEntity(String.class);
-            } else {
-                Log.warning("Failed to get post ID by URL. Status: " + r.getStatus());
-            }
-        } catch (Exception e) {
-            Log.severe("Exception while contacting Posts service: " + e.getMessage());
-        }
-
-        return null;
-    }
-
 
 @Override
 public Result<String> createPost(Post post, String userPassword) {
@@ -156,7 +106,6 @@ public Result<String> createPost(Post post, String userPassword) {
             Log.info("createPost: Parent post not found.");
             return Result.error(ErrorCode.NOT_FOUND);
         }
-
     }
     
     try {
@@ -323,42 +272,68 @@ public Result<List<String>> getPosts(long timestamp, String sortOrder) {
     @Override
     public Result<Void> deletePost(String postId, String userPassword) {
         Log.info("deletePost called with postId: " + postId + " and userPassword: " + userPassword);
-
-        Post post = getPost(postId).value();
+    
+        Post post = hibernate.get(Post.class, postId);
         if (post == null) {
             Log.info("deletePost: Post not found.");
             return Result.error(ErrorCode.NOT_FOUND);
         }
-        User author = hibernate.get(User.class, post.getAuthorId());
-        if (!author.getPassword().equals(userPassword)) {
+    
+        User author = getUser(post.getAuthorId());
+        if (author == null || !author.getPassword().equals(userPassword)) {
             Log.info("deletePost: Invalid password.");
             return Result.error(ErrorCode.FORBIDDEN);
         }
-
-        List<String> postIds = hibernate.jpql("SELECT p.postId FROM Post p WHERE p.parentUrl = :parentUrl", String.class);
-        for (String ids : postIds) {
-            /**
-            Post var = contentResources.getPost(ids);
-            if (var.getParentUrl() == post.getMediaUrl()) {
-                Log.info("deletePost: Cannot delete post with answers.");
-                return Result.error(ErrorCode.CONFLICT);
-            }*/
-        }
-
+    
         if (post.getUpVote() != 0 || post.getDownVote() != 0) {
             Log.info("deletePost: Cannot delete post with votes.");
             return Result.error(ErrorCode.CONFLICT);
         }
-        TypedQuery<Post> query = hibernate.jpql2("SELECT p FROM Post p WHERE p.parentUrl = :parentUrl", Post.class);
-        String parentUrl = getPostUrl(postId);
-        query.setParameter("parentUrl", parentUrl);
-        List<Post> posts = query.getResultList();
-        for (Post p : posts) {
-            hibernate.delete(p);
-        }
+
+        String mediaUrl = null; 
+        String id = null;
+        if (post.getMediaUrl() !=null){
+            mediaUrl = post.getMediaUrl(); 
+            id = mediaUrl.substring(mediaUrl.lastIndexOf('/') + 1);
+            String userId = author.getUserId();
+            deleteImage(id, userId, userPassword);  
+        } 
+            
+        deletePostRecursively(postId);
+    
         Log.info("deletePost: Deleted post with ID " + postId);
         return Result.ok();
     }
+    
+    private void deletePostRecursively(String postId) {
+        Result<List<String>> repliesResult = getPostAnswers(postId, 0);
+        if (repliesResult.isOK()) {
+            List<String> replies = repliesResult.value();
+            for (String replyId : replies) {
+                deletePostRecursively(replyId);
+            }
+        }
+    
+        try (Session session = Hibernate.getInstance().sessionFactory.openSession()) {
+            session.beginTransaction();
+            List<Votes> votes = session.createQuery(
+                "SELECT v FROM Votes v WHERE v.postId = :postId", Votes.class)
+                .setParameter("postId", postId)
+                .getResultList();
+            for (Votes v : votes) {
+                session.remove(v);
+            }
+            session.getTransaction().commit();
+        } catch (Exception e) {
+            Log.warning("Failed to delete votes for postId: " + postId + " - " + e.getMessage());
+        }
+    
+        Post toDelete = hibernate.get(Post.class, postId);
+        if (toDelete != null) {
+            hibernate.delete(toDelete);
+        }
+    }
+    
 
     @Override
     public Result<Void> upVotePost(String postId, String userId, String userPassword) {
@@ -611,4 +586,99 @@ public Result<List<String>> getPosts(long timestamp, String sortOrder) {
             return Result.error(ErrorCode.BAD_REQUEST);
         }
     }
+
+    @Override
+    public Result<Void> deleteVotesFromUser(String userId) {
+        Log.info("==================== deleteVotesFromUser called with userId: " + userId + " ====================");
+    
+        if (userId == null || userId.trim().isEmpty()) {
+            Log.warning("==================== deleteVotesFromUser: Invalid userId provided ====================");
+            return Result.error(ErrorCode.BAD_REQUEST);
+        }
+    
+        try (Session session = Hibernate.getInstance().sessionFactory.openSession()) {
+            List<Votes> votes = session.createQuery(
+                    "FROM Votes v WHERE v.userId = :userId", Votes.class
+                )
+                .setParameter("userId", userId)
+                .getResultList();
+    
+            if (votes.isEmpty()) {
+                Log.info("==================== deleteVotesFromUser: No votes found for user with ID " + userId + " ====================");
+                return Result.ok();
+            }
+    
+            session.beginTransaction();
+    
+            for (Votes vote : votes) {
+                session.remove(vote);
+            }
+
+            for (Votes vote : votes) {
+                Post post = session.get(Post.class, vote.getPostId());
+                if (vote.getVoteType().equals(Votes.VOTE_UP)) {
+                    post.setUpVote(post.getUpVote() - 1);
+                } else if (vote.getVoteType().equals(Votes.VOTE_DOWN)) {
+                    post.setDownVote(post.getDownVote() - 1);
+                }
+            }
+    
+            session.getTransaction().commit();
+    
+            Log.info("==================== deleteVotesFromUser: Deleted " + votes.size() + " votes for user with ID " + userId + " ====================");
+            return Result.ok();
+    
+        } catch (PersistenceException e) {
+            Log.severe("==================== Persistence error in deleteVotesFromUser: " + e.getMessage() + " ====================");
+            return Result.error(ErrorCode.INTERNAL_ERROR);
+        } catch (Exception e) {
+            Log.severe("==================== Unexpected error in deleteVotesFromUser ====================");
+            e.printStackTrace();
+            return Result.error(ErrorCode.INTERNAL_ERROR);
+        }
+    }
+    
+
+    @Override
+    public Result<Void> nullifyPostAuthors(String userId) {
+
+    if (userId == null || userId.trim().isEmpty()) {
+        return Result.error(ErrorCode.BAD_REQUEST);
+    }
+
+    try (Session session = Hibernate.getInstance().sessionFactory.openSession()) {
+        List<Post> posts = session.createQuery(
+                "FROM Post p WHERE p.authorId = :userId", Post.class
+            )
+            .setParameter("userId", userId)
+            .getResultList();
+
+        if (posts.isEmpty()) {
+            Log.info("nullifyPostAuthors: No posts found for user with ID " + userId);
+            return Result.ok();
+        }
+
+        session.beginTransaction();
+
+        for (Post post : posts) {
+            post.setAuthorId(null);
+        }
+
+        session.getTransaction().commit();
+
+        Log.info("nullifyPostAuthors: Nullified authorId for " + posts.size() + " posts by user with ID " + userId);
+        return Result.ok();
+
+    } catch (PersistenceException e) {
+        Log.severe("Persistence error in nullifyPostAuthors: " + e.getMessage());
+        return Result.error(ErrorCode.INTERNAL_ERROR);
+    } catch (Exception e) {
+        Log.severe("Unexpected error in nullifyPostAuthors");
+        e.printStackTrace();
+        return Result.error(ErrorCode.INTERNAL_ERROR);
+    }
+}
+
+    
+
 }

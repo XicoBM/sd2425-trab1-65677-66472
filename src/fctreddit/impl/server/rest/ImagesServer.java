@@ -35,8 +35,7 @@ public class ImagesServer {
 
             Log.info(String.format("%s Server ready @ %s\n", SERVICE, serverURI));
 
-            Discovery discovery = new Discovery(DISCOVERY_ADDR, SERVICE, serverURI);
-            discovery.start();
+            Discovery.getInstance().start(DISCOVERY_ADDR, SERVICE, serverURI);
             Thread.currentThread().join();
         } catch (Exception e) {
             Log.severe(e.getMessage());
