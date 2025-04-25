@@ -22,6 +22,7 @@ import fctreddit.api.User;
 import fctreddit.api.Votes;
 
 import jakarta.persistence.NoResultException;
+import jakarta.persistence.PersistenceException;
 import jakarta.persistence.TypedQuery;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.client.Client;
@@ -171,36 +172,49 @@ public Result<String> createPost(Post post, String userPassword) {
 }
 
 
-    @Override
-    public Result<List<String>> getPosts(long timestamp, String sortOrder) {
-        Log.info("getPosts called with timestamp: " + timestamp + " and sortOrder: " + sortOrder);
+@Override
+public Result<List<String>> getPosts(long timestamp, String sortOrder) {
+    Log.info("getPosts called with timestamp: " + timestamp + " and sortOrder: " + sortOrder);
 
-        try {
-            String query = "SELECT p.postId FROM Post p WHERE p.parentUrl IS NULL";
+    try {
+        String query = "SELECT p.postId FROM Post p WHERE p.parentUrl IS NULL";
 
-            if (timestamp > 0) {
-                query += " AND p.creationTimestamp >= :timestamp";
-            }
-            if (sortOrder != null) {
-                switch (sortOrder) {
-                    case Content.MOST_UP_VOTES:
-                        query += " ORDER BY p.upVote DESC";
-                        break;
-                    case Content.MOST_REPLIES:
-                        query += " ORDER BY SIZE(p.replies) DESC";
-                        break;
-                    default:
-                        Log.warning("Invalid sortOrder: " + sortOrder);
-                        throw new WebApplicationException(Status.BAD_REQUEST);
-                }
-            }
-            List<String> res = hibernate.jpql(query, String.class);
-            return Result.ok(res);
-        } catch (Exception e) {
-            Log.severe("Error retrieving posts: " + e.getMessage());
-            throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
+        if (timestamp > 0) {
+            query += " AND p.creationTimestamp >= :timestamp";
         }
+
+        List<String> postIds = hibernate.jpql(query, String.class);
+
+        if (sortOrder != null) {
+            switch (sortOrder) {
+                case Content.MOST_UP_VOTES:
+                    query += " ORDER BY p.upVote DESC";
+                    postIds = hibernate.jpql(query, String.class);
+                    break;
+
+                case Content.MOST_REPLIES:
+                    long maxTimeout = 0;
+                    postIds.sort((a, b) -> {
+                        List<String> answersB = getPostAnswers(b, maxTimeout).value();
+                        List<String> answersA = getPostAnswers(a, maxTimeout).value();
+                        return Integer.compare(answersB.size(), answersA.size());
+                    });                    
+                    break;
+
+                default:
+                    Log.warning("Invalid sortOrder: " + sortOrder);
+                    throw new WebApplicationException(Status.BAD_REQUEST);
+            }
+        }
+
+        return Result.ok(postIds);
+
+    } catch (Exception e) {
+        Log.severe("Error retrieving posts: " + e.getMessage());
+        throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
     }
+}
+
 
     @Override
     public Result<Post> getPost(String postId) {
@@ -216,41 +230,58 @@ public Result<String> createPost(Post post, String userPassword) {
     }
 
     @Override
-public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
-    Log.info("getPostAnswers called with postId: " + postId);
-
-    if (postId == null || postId.trim().isEmpty()) {
-        Log.info("getPostAnswers: Invalid postId.");
-        return Result.error(ErrorCode.BAD_REQUEST);
-    }
-
-    try (Session session = Hibernate.getInstance().sessionFactory.openSession()) { 
-        Post parentPost = session.get(Post.class, postId);
-        if (parentPost == null) {
-            Log.info("getPostAnswers: Post not found.");
-            return Result.error(ErrorCode.NOT_FOUND);
+    public Result<List<String>> getPostAnswers(String postId, long timeout) {
+        Log.info("getPostAnswers called with postId: " + postId + ", timeout: " + timeout);
+    
+        if (postId == null || postId.trim().isEmpty()) {
+            Log.info("getPostAnswers: Invalid postId.");
+            return Result.error(ErrorCode.BAD_REQUEST);
         }
-
-        String serverIp = InetAddress.getLocalHost().getHostAddress();
-        String parentUrl = String.format("http://%s:8081/rest/posts/%s", serverIp, postId);
-
-        // Agora buscamos todos os posts que têm o parentUrl igual ao URL do post pai
-        TypedQuery<String> query = session.createQuery(
-            "SELECT p.postId FROM Post p WHERE p.parentUrl = :parentUrl", 
-            String.class
-        );
-        query.setParameter("parentUrl", parentUrl); // Comparar com o URL completo do post pai
-
-        List<String> result = query.getResultList();
-        Log.info("Returning " + result.size() + " answers for postId: " + postId);
-
-        return Result.ok(result);
-    } catch (Exception e) {
-        Log.severe("getPostAnswers: Unexpected error: " + e.getMessage());
-        e.printStackTrace();
-        return Result.error(ErrorCode.INTERNAL_ERROR);
+    
+        try (Session session = Hibernate.getInstance().sessionFactory.openSession()) {
+            Post parentPost = session.get(Post.class, postId);
+            if (parentPost == null) {
+                Log.info("getPostAnswers: Post not found.");
+                return Result.error(ErrorCode.NOT_FOUND);
+            }
+    
+            String serverIp = InetAddress.getLocalHost().getHostAddress();
+            String parentUrl = String.format("http://%s:8081/rest/posts/%s", serverIp, postId);
+    
+            TypedQuery<String> query = session.createQuery(
+                "SELECT p.postId FROM Post p WHERE p.parentUrl = :parentUrl",
+                String.class
+            );
+            query.setParameter("parentUrl", parentUrl);
+    
+            List<String> initialAnswers = query.getResultList();
+            if (timeout <= 0) {
+                return Result.ok(initialAnswers);
+            }
+    
+            long startTime = System.currentTimeMillis();
+            while (System.currentTimeMillis() - startTime < timeout) {
+                Thread.sleep(1000); 
+    
+                List<String> currentAnswers = session.createQuery(
+                    "SELECT p.postId FROM Post p WHERE p.parentUrl = :parentUrl",
+                    String.class
+                ).setParameter("parentUrl", parentUrl).getResultList();
+    
+                if (currentAnswers.size() > initialAnswers.size()) {
+                    return Result.ok(currentAnswers);
+                }
+            }
+    
+            return Result.ok(initialAnswers);
+    
+        } catch (Exception e) {
+            Log.severe("getPostAnswers: Unexpected error: " + e.getMessage());
+            e.printStackTrace();
+            return Result.error(ErrorCode.INTERNAL_ERROR);
+        }
     }
-}
+    
 
 
     @Override
@@ -258,7 +289,7 @@ public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
         Log.info("updatePost called with postId: " + postId + " and userPassword: " + userPassword);
 
         Post existingPost = hibernate.get(Post.class, postId);
-        User user = hibernate.get(User.class, existingPost.getAuthorId());
+        User user = getUser(existingPost.getAuthorId());
         if (!user.getPassword().equals(userPassword)) {
             Log.info("updatePost: Invalid password.");
             return Result.error(ErrorCode.FORBIDDEN);
@@ -270,7 +301,7 @@ public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
         Result<List<String>> answersResult = getPostAnswers(postId, 0);
         if (answersResult.isOK() && !answersResult.value().isEmpty()) {
             Log.info("updatePost: Post has answers. Update not allowed.");
-            return Result.error(ErrorCode.CONFLICT);
+            return Result.error(ErrorCode.BAD_REQUEST);
         }
         try {
             if (post.getContent() != null) {
@@ -281,7 +312,7 @@ public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
             }
             hibernate.update(existingPost);
             Log.info("updatePost: Updated post with ID " + postId);
-            return Result.ok();
+            return Result.ok(existingPost);
         } catch (Exception e) {
             e.printStackTrace();
             Log.info("updatePost: Failed to update post.");
@@ -332,44 +363,62 @@ public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
     @Override
     public Result<Void> upVotePost(String postId, String userId, String userPassword) {
         Log.info("upVotePost called with postId: " + postId + " and userId: " + userId);
-
-        Post post = hibernate.get(Post.class, postId);
-        if (post == null) {
-            Log.info("upVotePost: Post not found.");
-            return Result.error(ErrorCode.NOT_FOUND);
-        }
-        User user = hibernate.get(User.class, userId);
-        if (user == null) {
-            Log.info("upVotePost: User not found.");
-            return Result.error(ErrorCode.NOT_FOUND);
-        }
-        if (!user.getPassword().equals(userPassword)) {
-            Log.info("upVotePost: Invalid password.");
-            return Result.error(ErrorCode.FORBIDDEN);
-        }
-        TypedQuery<Votes> query = hibernate.jpql2(
-                "SELECT v FROM Votes v WHERE v.postId = :postId AND v.userId = :userId",
-                Votes.class);
-        query.setParameter("postId", postId);
-        query.setParameter("userId", userId);
-        Votes userVote = query.getSingleResult();
-        if (userVote != null) {
-            Log.info("upVotePost: User already voted.");
-            return Result.error(ErrorCode.CONFLICT);
-        }
-        try {
-            Votes vote = new Votes(postId, userId, Votes.VOTE_UP);
-            hibernate.persist(vote);
-            post.setUpVote(post.getUpVote() + 1);
-            updatePost(postId, userPassword, post);
-            Log.info("upVotePost: Added upvote to post with ID " + postId);
-            return Result.ok();
-        } catch (Exception e) {
-            e.printStackTrace();
-            Log.info("upVotePost: Failed to add upvote.");
+    
+        if (postId == null || userId == null || userPassword == null) {
+            Log.info("upVotePost: Invalid input.");
             return Result.error(ErrorCode.BAD_REQUEST);
         }
+    
+        try (Session session = Hibernate.getInstance().sessionFactory.openSession()) {
+    
+            session.beginTransaction();
+    
+            Post post = session.get(Post.class, postId);
+            if (post == null) {
+                Log.info("upVotePost: Post not found.");
+                return Result.error(ErrorCode.NOT_FOUND);
+            }
+    
+            User user = getUser(userId);
+            if (user == null) {
+                Log.info("upVotePost: User not found.");
+                return Result.error(ErrorCode.NOT_FOUND);
+            }
+    
+            if (!user.getPassword().equals(userPassword)) {
+                Log.info("upVotePost: Invalid password.");
+                return Result.error(ErrorCode.FORBIDDEN);
+            }
+    
+            TypedQuery<Votes> query = session.createQuery(
+                "SELECT v FROM Votes v WHERE v.postId = :postId AND v.userId = :userId",
+                Votes.class
+            );
+            query.setParameter("postId", postId);
+            query.setParameter("userId", userId);
+    
+            if (!query.getResultList().isEmpty()) {
+                Log.info("upVotePost: User already voted.");
+                return Result.error(ErrorCode.CONFLICT);
+            }
+    
+            Votes vote = new Votes(postId, userId, Votes.VOTE_UP);
+            session.persist(vote);
+            post.setUpVote(post.getUpVote() + 1);
+            session.getTransaction().commit();
+    
+            Log.info("upVotePost: Added upvote to post with ID " + postId);
+            return Result.ok();
+    
+        } catch (PersistenceException e) {
+            Log.severe("Error in upVotePost: " + e.getMessage());
+            return Result.error(ErrorCode.INTERNAL_ERROR);
+        } catch (Exception e) {
+            Log.severe("Unexpected error in upVotePost: " + e.getMessage());
+            return Result.error(ErrorCode.INTERNAL_ERROR);
+        }
     }
+    
 
     @Override
     public Result<Void> removeUpVotePost(String postId, String userId, String userPassword) {
@@ -420,44 +469,62 @@ public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
     @Override
     public Result<Void> downVotePost(String postId, String userId, String userPassword) {
         Log.info("downVotePost called with postId: " + postId + " and userId: " + userId);
-
-        Post post = hibernate.get(Post.class, postId);
-        if (post == null) {
-            Log.info("downVotePost: Post not found.");
-            return Result.error(ErrorCode.NOT_FOUND);
-        }
-        User user = hibernate.get(User.class, userId);
-        if (user == null) {
-            Log.info("downVotePost: User not found.");
-            return Result.error(ErrorCode.NOT_FOUND);
-        }
-        if (!user.getPassword().equals(userPassword)) {
-            Log.info("downVotePost: Invalid password.");
-            return Result.error(ErrorCode.FORBIDDEN);
-        }
-        TypedQuery<Votes> query = hibernate.jpql2(
-                "SELECT v FROM Votes v WHERE v.postId = :postId AND v.userId = :userId",
-                Votes.class);
-        query.setParameter("postId", postId);
-        query.setParameter("userId", userId);
-        Votes userVote = query.getSingleResult();
-        if (userVote != null) {
-            Log.info("downVotePost: User already voted.");
-            return Result.error(ErrorCode.CONFLICT);
-        }
-        try {
-            Votes vote = new Votes(postId, userId, Votes.VOTE_DOWN);
-            hibernate.persist(vote);
-            post.setDownVote(post.getDownVote() + 1);
-            updatePost(postId, userPassword, post);
-            Log.info("downVotePost: Added downvote to post with ID " + postId);
-            return Result.ok();
-        } catch (Exception e) {
-            e.printStackTrace();
-            Log.info("downVotePost: Failed to add downvote.");
+    
+        if (postId == null || userId == null || userPassword == null) {
+            Log.info("downVotePost: Invalid input.");
             return Result.error(ErrorCode.BAD_REQUEST);
         }
+    
+        try (Session session = Hibernate.getInstance().sessionFactory.openSession()) {
+    
+            session.beginTransaction();
+    
+            Post post = session.get(Post.class, postId);
+            if (post == null) {
+                Log.info("downVotePost: Post not found.");
+                return Result.error(ErrorCode.NOT_FOUND);
+            }
+    
+            User user = getUser(userId);
+            if (user == null) {
+                Log.info("downVotePost: User not found.");
+                return Result.error(ErrorCode.NOT_FOUND);
+            }
+    
+            if (!user.getPassword().equals(userPassword)) {
+                Log.info("downVotePost: Invalid password.");
+                return Result.error(ErrorCode.FORBIDDEN);
+            }
+            
+            TypedQuery<Votes> query = session.createQuery(
+                "SELECT v FROM Votes v WHERE v.postId = :postId AND v.userId = :userId",
+                Votes.class
+            );
+            query.setParameter("postId", postId);
+            query.setParameter("userId", userId);
+    
+            if (!query.getResultList().isEmpty()) {
+                Log.info("downVotePost: User already voted.");
+                return Result.error(ErrorCode.CONFLICT);
+            }
+    
+            Votes vote = new Votes(postId, userId, Votes.VOTE_DOWN);
+            session.persist(vote);
+            post.setDownVote(post.getDownVote() + 1);
+            session.getTransaction().commit();    
+            Log.info("downVotePost: Added downvote to post with ID " + postId);
+            return Result.ok();
+    
+        } catch (PersistenceException e) {
+            Log.severe("Error in downVotePost: " + e.getMessage());
+            return Result.error(ErrorCode.INTERNAL_ERROR);
+        } catch (Exception e) {
+            Log.severe("Unexpected error in downVotePost: " + e.getMessage());
+            return Result.error(ErrorCode.INTERNAL_ERROR);
+        }
     }
+    
+    
 
     @Override
     public Result<Void> removeDownVotePost(String postId, String userId, String userPassword) {

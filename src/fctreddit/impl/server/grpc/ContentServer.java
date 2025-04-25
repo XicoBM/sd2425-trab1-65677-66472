@@ -36,5 +36,4 @@ public class ContentServer {
 		Log.fine("Content gRPC Server started successfully");
 		System.out.println("Content gRPC Server started successfully");
 		server.start().awaitTermination();
-	
 }

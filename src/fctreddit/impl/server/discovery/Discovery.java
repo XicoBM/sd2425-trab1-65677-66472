@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+
 import java.util.logging.Logger;
 
 /**
@@ -51,9 +52,9 @@ public class Discovery {
     static final int DISCOVERY_RETRY_TIMEOUT = 5000;
     static final int MAX_DATAGRAM_SIZE = 65536;
 
-
     // Used to separate the two fields that make up a service announcement.
     private static final String DELIMITER = "\t";
+
 
     private static Discovery instance;
     private final InetSocketAddress addr;
@@ -103,7 +104,6 @@ public class Discovery {
         }
         return instance;
     }
-
 
     /**
      * Starts sending service announcements at regular intervals...
@@ -211,6 +211,7 @@ public class Discovery {
                 }
                 return uriStrings;
             }
+
         }
     }
 

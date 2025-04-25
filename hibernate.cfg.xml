@@ -22,5 +22,6 @@
 		<property name="hibernate.dbcp.maxWaitMillis">-1</property>
 		<mapping class="fctreddit.api.User" />
 		<mapping class="fctreddit.api.Post" />
+		<mapping class="fctreddit.api.Votes" />
 	</session-factory>
 </hibernate-configuration>
