@@ -23,6 +23,7 @@ import fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostsResult;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.GrpcPost;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.NullifyAuthorsArgs;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.UpdatePostArgs;
+import fctreddit.impl.grpc.generated_java.ContentProtoBuf.VoteCountResult;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.ChangeVoteArgs;
 import fctreddit.impl.grpc.util.DataModelAdaptorPosts;
 
@@ -159,6 +160,28 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
             responseObserver.onError(errorCodeToStatus(res.error()));
         else {
             responseObserver.onNext(EmptyMessage.newBuilder().build());
+            responseObserver.onCompleted();
+        }
+    }
+
+    @Override
+    public void getUpVotes(GetPostArgs request, StreamObserver<VoteCountResult> responseObserver) {
+        Result<Integer> res = impl.getUpVotes(request.getPostId());
+        if (!res.isOK())
+            responseObserver.onError(errorCodeToStatus(res.error()));
+        else {
+            responseObserver.onNext(VoteCountResult.newBuilder().setCount(res.value()).build());
+            responseObserver.onCompleted();
+        }
+    }
+
+    @Override
+    public void getDownVotes(GetPostArgs request, StreamObserver<VoteCountResult> responseObserver) {
+        Result<Integer> res = impl.getDownVotes(request.getPostId());
+        if (!res.isOK())
+            responseObserver.onError(errorCodeToStatus(res.error()));
+        else {
+            responseObserver.onNext(VoteCountResult.newBuilder().setCount(res.value()).build());
             responseObserver.onCompleted();
         }
     }
