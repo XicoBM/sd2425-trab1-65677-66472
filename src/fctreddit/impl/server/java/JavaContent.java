@@ -146,83 +146,83 @@ public class JavaContent implements Content {
     }
 
 
-@Override
-public Result<String> createPost(Post post, String userPassword) {
-    Log.info("createPost called with userId: " + post.getAuthorId());
-    User user = getUser(post.getAuthorId());
-    if (user == null) {
-        Log.info("createPost: User not found.");
-        return Result.error(ErrorCode.NOT_FOUND);
-    }
-    if (!user.getPassword().equals(userPassword)) {
-        Log.info("createPost: Invalid input.");
-        return Result.error(ErrorCode.FORBIDDEN);
-    }
-    if (post.getParentUrl() != null) {
-        String parentId = post.getParentUrl().substring(post.getParentUrl().lastIndexOf('/') + 1);
-        Post parentPost = hibernate.get(Post.class, parentId);
-        if (parentPost == null) {
-            Log.info("createPost: Parent post not found.");
+    @Override
+    public Result<String> createPost(Post post, String userPassword) {
+        Log.info("createPost called with userId: " + post.getAuthorId());
+        User user = getUser(post.getAuthorId());
+        if (user == null) {
+            Log.info("createPost: User not found.");
             return Result.error(ErrorCode.NOT_FOUND);
         }
-    }
-
-    String postId = UUID.randomUUID().toString();
-    post.setPostId(postId); 
-
-    try {
-        hibernate.persist(post);
-        return Result.ok(postId);
-    } catch (Exception e) {
-        e.printStackTrace();
-        Log.info("createPost: Failed to write post.");
-        return Result.error(ErrorCode.INTERNAL_ERROR);
-    }
-}
-
-
-@Override
-public Result<List<String>> getPosts(long timestamp, String sortOrder) {
-    Log.info("getPosts called with timestamp: " + timestamp + " and sortOrder: " + sortOrder);
-
-    try {
-        String query = "SELECT p.postId FROM Post p WHERE p.parentUrl IS NULL";
-
-        if (timestamp > 0) {
-            query += " AND p.creationTimestamp >= :timestamp";
+        if (!user.getPassword().equals(userPassword)) {
+            Log.info("createPost: Invalid input.");
+            return Result.error(ErrorCode.FORBIDDEN);
         }
-
-        List<String> postIds = hibernate.jpql(query, String.class);
-
-        if (sortOrder != null) {
-            switch (sortOrder) {
-                case Content.MOST_UP_VOTES:
-                    query += " ORDER BY p.upVote DESC";
-                    postIds = hibernate.jpql(query, String.class);
-                    break;
-
-                case Content.MOST_REPLIES:
-                    long maxTimeout = 0;
-                    postIds.sort((a, b) -> {
-                        List<String> answersB = getPostAnswers(b, maxTimeout).value();
-                        List<String> answersA = getPostAnswers(a, maxTimeout).value();
-                        return Integer.compare(answersB.size(), answersA.size());
-                    });                    
-                    break;
-
-                default:
-                    Log.warning("Invalid sortOrder: " + sortOrder);
-                    throw new WebApplicationException(Status.BAD_REQUEST);
+        if (post.getParentUrl() != null) {
+            String parentId = post.getParentUrl().substring(post.getParentUrl().lastIndexOf('/') + 1);
+            Post parentPost = hibernate.get(Post.class, parentId);
+            if (parentPost == null) {
+                Log.info("createPost: Parent post not found.");
+                return Result.error(ErrorCode.NOT_FOUND);
             }
         }
-
-        return Result.ok(postIds);
-
-    } catch (Exception e) {
-        Log.severe("Error retrieving posts: " + e.getMessage());
-        throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
+    
+        String postId = UUID.randomUUID().toString();
+        post.setPostId(postId); 
+    
+        try {
+            hibernate.persist(post);
+            return Result.ok(postId);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Log.info("createPost: Failed to write post.");
+            return Result.error(ErrorCode.INTERNAL_ERROR);
+        }
     }
-}
+    
+    
+    @Override
+    public Result<List<String>> getPosts(long timestamp, String sortOrder) {
+        Log.info("getPosts called with timestamp: " + timestamp + " and sortOrder: " + sortOrder);
+    
+        try {
+            String query = "SELECT p.postId FROM Post p WHERE p.parentUrl IS NULL";
+        
+            if (timestamp > 0) {
+                query += " AND p.creationTimestamp >= :timestamp";
+            }
+        
+            List<String> postIds = hibernate.jpql(query, String.class);
+        
+            if (sortOrder != null) {
+                switch (sortOrder) {
+                    case Content.MOST_UP_VOTES:
+                        query += " ORDER BY p.upVote DESC";
+                        postIds = hibernate.jpql(query, String.class);
+                        break;
+                
+                    case Content.MOST_REPLIES:
+                        long maxTimeout = 0;
+                        postIds.sort((a, b) -> {
+                            List<String> answersB = getPostAnswers(b, maxTimeout).value();
+                            List<String> answersA = getPostAnswers(a, maxTimeout).value();
+                            return Integer.compare(answersB.size(), answersA.size());
+                        });                    
+                        break;
+                    
+                    default:
+                        Log.warning("Invalid sortOrder: " + sortOrder);
+                        throw new WebApplicationException(Status.BAD_REQUEST);
+                }
+            }
+        
+            return Result.ok(postIds);
+        
+        } catch (Exception e) {
+            Log.severe("Error retrieving posts: " + e.getMessage());
+            throw new WebApplicationException(Status.INTERNAL_SERVER_ERROR);
+        }
+    }
 
 
     @Override
@@ -660,10 +660,10 @@ public Result<List<String>> getPosts(long timestamp, String sortOrder) {
 
     @Override
     public Result<Void> deleteVotesFromUser(String userId) {
-        Log.info("==================== deleteVotesFromUser called with userId: " + userId + " ====================");
+        Log.info("deleteVotesFromUser called with userId: " + userId);
     
         if (userId == null || userId.trim().isEmpty()) {
-            Log.warning("==================== deleteVotesFromUser: Invalid userId provided ====================");
+            Log.warning("deleteVotesFromUser: Invalid userId provided");
             return Result.error(ErrorCode.BAD_REQUEST);
         }
     
@@ -675,7 +675,7 @@ public Result<List<String>> getPosts(long timestamp, String sortOrder) {
                 .getResultList();
     
             if (votes.isEmpty()) {
-                Log.info("==================== deleteVotesFromUser: No votes found for user with ID " + userId + " ====================");
+                Log.info("deleteVotesFromUser: No votes found for user with ID " + userId);
                 return Result.ok();
             }
     
@@ -696,14 +696,14 @@ public Result<List<String>> getPosts(long timestamp, String sortOrder) {
     
             session.getTransaction().commit();
     
-            Log.info("==================== deleteVotesFromUser: Deleted " + votes.size() + " votes for user with ID " + userId + " ====================");
+            Log.info("deleteVotesFromUser: Deleted " + votes.size() + " votes for user with ID " + userId);
             return Result.ok();
     
         } catch (PersistenceException e) {
-            Log.severe("==================== Persistence error in deleteVotesFromUser: " + e.getMessage() + " ====================");
+            Log.severe("Persistence error in deleteVotesFromUser: " + e.getMessage());
             return Result.error(ErrorCode.INTERNAL_ERROR);
         } catch (Exception e) {
-            Log.severe("==================== Unexpected error in deleteVotesFromUser ====================");
+            Log.severe("Unexpected error in deleteVotesFromUser");
             e.printStackTrace();
             return Result.error(ErrorCode.INTERNAL_ERROR);
         }

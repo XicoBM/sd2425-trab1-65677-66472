@@ -66,5 +66,13 @@ public interface Users {
 	 */
 	Result<List<User>> searchUsers(String pattern);
 
+	/**
+	 * Obtains the information on the user identified by name. This method is used
+	 * when the password is not required (e.g., when the user is not logged in).
+	 * 
+	 * @param userId the userId of the user
+	 * @return <OK, User> and the user object in case of success
+	 *         NOT_FOUND if no user exists with the provided userId
+	 */
 	Result<User> getUserAux(String userId);
 }

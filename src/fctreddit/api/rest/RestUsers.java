@@ -97,6 +97,13 @@ public interface RestUsers {
 	List<User> searchUsers(@QueryParam(QUERY) String pattern);
 
 	
+	/**
+	 * Obtains the information on the user identified by name.
+	 * 
+	 * @param userId   the userId of the user
+	 * @return 	OK and the user object in the case of success (password is correct)
+	 * 			NOT_FOUND if no user exists with the provided userId
+	 */
 	@GET
 	@Path("/{" + USER_ID + "}/aux")
 	@Produces(MediaType.APPLICATION_JSON)
