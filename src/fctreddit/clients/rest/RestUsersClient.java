@@ -10,6 +10,7 @@ import org.glassfish.jersey.client.ClientProperties;
 import fctreddit.api.User;
 import fctreddit.api.java.Result;
 import fctreddit.api.rest.RestUsers;
+import fctreddit.clients.java.UsersClient;
 import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
@@ -22,18 +23,15 @@ import jakarta.ws.rs.core.Response.Status;
 import fctreddit.api.java.Result.ErrorCode;
 
 
-public class RestUsersClient {
+public class RestUsersClient extends UsersClient {
     private static final Logger Log = Logger.getLogger(RestUsersClient.class.getName());
 
-    // Timeout settings
-    protected static final int READ_TIMEOUT = 5000;  // 5 seconds
-    protected static final int CONNECT_TIMEOUT = 5000; // 5 seconds
+    protected static final int READ_TIMEOUT = 5000;  
+    protected static final int CONNECT_TIMEOUT = 5000; 
 
-    // Retry settings
-    protected static final int MAX_RETRIES = 10;     // Retry up to 10 times
-    protected static final int RETRY_SLEEP = 5000;   // 5 seconds between retries
+    protected static final int MAX_RETRIES = 10;     
+    protected static final int RETRY_SLEEP = 5000;   
 
-    // Base URI and client setup
     final URI serverURI;
     final Client client;
     final ClientConfig config;
@@ -41,14 +39,14 @@ public class RestUsersClient {
 
     public RestUsersClient(URI serverURI) {
         this.serverURI = serverURI;
-        this.config = new ClientConfig();
 
+        this.config = new ClientConfig();
         config.property(ClientProperties.READ_TIMEOUT, READ_TIMEOUT);
         config.property(ClientProperties.CONNECT_TIMEOUT, CONNECT_TIMEOUT);
 
         this.client = ClientBuilder.newClient(config);
-        this.target = client.target(serverURI).path(RestUsers.PATH); // Base API path
-    }
+        this.target = client.target(this.serverURI).path(RestUsers.PATH);
+}
 
     public Result<String> createUser(User user) {
         for (int i = 0; i < MAX_RETRIES; i++) {
@@ -74,7 +72,6 @@ public class RestUsersClient {
         return Result.error(ErrorCode.TIMEOUT);
     }
 
-    // Get User by userId and password
     public Result<User> getUser(String userId, String password) {
         Response r = target.path(userId)
                 .queryParam(RestUsers.PASSWORD, password)
@@ -90,7 +87,6 @@ public class RestUsersClient {
         }
     }
 
-    // Update User Method with Retry Logic
     public Result<User> updateUser(String userId, String password, User user) {
         for (int i = 0; i < MAX_RETRIES; i++) {
             try {
@@ -117,7 +113,6 @@ public class RestUsersClient {
         return Result.error(ErrorCode.TIMEOUT);
     }
 
-    // Delete User Method with Retry Logic
     public Result<User> deleteUser(String userId, String password) {
         for (int i = 0; i < MAX_RETRIES; i++) {
             try {
@@ -144,7 +139,6 @@ public class RestUsersClient {
         return Result.error(ErrorCode.TIMEOUT);
     }
 
-    // Search Users Method with Retry Logic
     public Result<List<User>> searchUsers(String pattern) {
         for (int i = 0; i < MAX_RETRIES; i++) {
             try {
@@ -172,31 +166,31 @@ public class RestUsersClient {
       }
 
 
-public Result<User> getUserAux(String userId) {
-    for (int i = 0; i < MAX_RETRIES; i++) {
-        try {
-            Response r = target.path(userId)
-                    .path("aux")  
-                    .request()
-                    .accept(MediaType.APPLICATION_JSON)
-                    .get();
+    public Result<User> getUserAux(String userId) {
+        for (int i = 0; i < MAX_RETRIES; i++) {
+            try {
+                Response r = target.path(userId)
+                        .path("aux")  
+                        .request()
+                        .accept(MediaType.APPLICATION_JSON)
+                        .get();
 
-            int status = r.getStatus();
-            if (status != Status.OK.getStatusCode()) {
-                return Result.error(getErrorCodeFrom(status));
-            } else {
-                return Result.ok(r.readEntity(User.class));
+                int status = r.getStatus();
+                if (status != Status.OK.getStatusCode()) {
+                    return Result.error(getErrorCodeFrom(status));
+                } else {
+                    return Result.ok(r.readEntity(User.class));
+                }
+
+            } catch (ProcessingException e) {
+                Log.info("ProcessingException: " + e.getMessage());
+                retryWait();
+            } catch (Exception e) {
+                Log.severe("Exception: " + e.getMessage());
             }
-
-        } catch (ProcessingException e) {
-            Log.info("ProcessingException: " + e.getMessage());
-            retryWait();
-        } catch (Exception e) {
-            Log.severe("Exception: " + e.getMessage());
         }
-    }
-    return Result.error(ErrorCode.TIMEOUT);
-}
+        return Result.error(ErrorCode.TIMEOUT);
+    }   
 
 
     private void retryWait() {
@@ -206,6 +200,7 @@ public Result<User> getUserAux(String userId) {
             Log.warning("Retry wait interrupted: " + e.getMessage());
         }
     }
+
 
     public static ErrorCode getErrorCodeFrom(int status) {
       return switch (status) {

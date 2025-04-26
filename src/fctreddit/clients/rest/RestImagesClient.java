@@ -8,6 +8,7 @@ import org.glassfish.jersey.client.ClientProperties;
 
 import fctreddit.api.java.Result;
 import fctreddit.api.rest.RestImage;
+import fctreddit.clients.java.ImageClient;
 import fctreddit.api.java.Result.ErrorCode;
 import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.client.Client;
@@ -18,7 +19,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 
-public class RestImagesClient {
+public class RestImagesClient extends ImageClient {
 
     private static final Logger Log = Logger.getLogger(RestImagesClient.class.getName());
 
@@ -37,7 +38,7 @@ public class RestImagesClient {
         config.property(ClientProperties.READ_TIMEOUT, READ_TIMEOUT);
         config.property(ClientProperties.CONNECT_TIMEOUT, CONNECT_TIMEOUT);
         this.client = ClientBuilder.newClient(config);
-        this.target = client.target(serverURI).path(RestImage.PATH);
+        this.target = client.target(this.serverURI).path(RestImage.PATH);
     }
 
     public Result<String> createImage(String userId, byte[] imageContent, String password) {

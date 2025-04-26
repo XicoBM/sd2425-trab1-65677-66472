@@ -217,7 +217,7 @@ public interface RestContent {
 	@GET
 	@Path("{" + POSTID + "}/" + UPVOTE)
 	@Consumes(MediaType.APPLICATION_JSON)
-	public Integer getupVotes(@PathParam(POSTID) String postId);
+	public Integer getUpVotes(@PathParam(POSTID) String postId);
 	
 	/**
 	 * Exposes the number of downvotes currently associated with a given post

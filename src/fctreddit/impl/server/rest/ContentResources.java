@@ -3,7 +3,6 @@ package fctreddit.impl.server.rest;
 import java.util.List;
 import java.util.logging.Logger;
 
-import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response.Status;
 
@@ -83,9 +82,9 @@ public class ContentResources implements RestContent {
     }
 
     @Override
-    public Integer getupVotes(String postId) {
+    public Integer getUpVotes(String postId) {
         Log.info("getupVotes called with postId: " + postId);
-        return handleResult(impl.getupVotes(postId), "Failed to get upvotes for post with ID: " + postId);
+        return handleResult(impl.getUpVotes(postId), "Failed to get upvotes for post with ID: " + postId);
     }
 
     @Override

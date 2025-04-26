@@ -168,7 +168,7 @@ public interface Content {
 	 * @return	OK and the number of upvotes in case of success
 	 * 			NOT_FOUND if the postId does not match an existing post
 	 */
-	public Result<Integer> getupVotes(String postId);
+	public Result<Integer> getUpVotes(String postId);
 	
 	/**
 	 * Exposes the number of downvotes currently associated with a given post

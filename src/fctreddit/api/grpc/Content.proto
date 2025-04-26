@@ -28,6 +28,10 @@ service Content {
 	rpc getUpVotes ( GetPostArgs ) returns ( VoteCountResult ) {}
 	
 	rpc getDownVotes ( GetPostArgs ) returns ( VoteCountResult ) {}
+
+	rpc deleteVotesFromUser ( DeleteVotesArgs ) returns ( EmptyMessage ) {}
+
+	rpc nullifyPostAuthors ( NullifyAuthorsArgs ) returns ( EmptyMessage ) {}
 }
 
 message GrpcPost {
@@ -56,7 +60,7 @@ message GetPostsArgs {
 }
 
 message GetPostsResult {
-    	repeated string postId = 1;
+	repeated string postId = 1;
 }
 
 message GetPostArgs {
@@ -85,9 +89,16 @@ message ChangeVoteArgs {
 	optional string password = 3;
 }
 
-message EmptyMessage {
-}
+message EmptyMessage {}
 
 message VoteCountResult {
 	int32 count = 1;
+}
+
+message DeleteVotesArgs {
+	string userId = 1;
+}
+
+message NullifyAuthorsArgs {
+	string userId = 1;
 }

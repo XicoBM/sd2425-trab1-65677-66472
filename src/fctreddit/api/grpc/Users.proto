@@ -3,18 +3,19 @@ syntax = "proto3";
 option java_package = "fctreddit.impl.grpc.generated_java";
 option java_outer_classname = "UsersProtoBuf";
 
-
 service Users {
 
-	rpc createUser( CreateUserArgs ) returns (CreateUserResult) {}
+	rpc createUser(CreateUserArgs) returns (CreateUserResult) {}
 
-	rpc getUser( GetUserArgs) returns (GetUserResult){}
+	rpc getUser(GetUserArgs) returns (GetUserResult) {}
 
-	rpc updateUser( UpdateUserArgs) returns (UpdateUserResult){}
+	rpc getUserAux(GetUserAuxArgs) returns (GetUserResult) {}
 
-	rpc deleteUser( DeleteUserArgs) returns (DeleteUserResult){}
+	rpc updateUser(UpdateUserArgs) returns (UpdateUserResult) {}
 
-	rpc searchUsers( SearchUserArgs) returns (stream GrpcUser){}
+	rpc deleteUser(DeleteUserArgs) returns (DeleteUserResult) {}
+
+	rpc searchUsers(SearchUserArgs) returns (stream GrpcUser) {}
 
 }
 
@@ -25,7 +26,6 @@ message GrpcUser {
 	optional string password = 4;
 	optional string avatarUrl = 5;
 }
-
 
 message CreateUserArgs {
 	GrpcUser user = 1;
@@ -38,6 +38,10 @@ message CreateUserResult {
 message GetUserArgs {
 	string userId = 1;
 	optional string password = 2;
+}
+
+message GetUserAuxArgs {
+	string userId = 1;
 }
 
 message GetUserResult {

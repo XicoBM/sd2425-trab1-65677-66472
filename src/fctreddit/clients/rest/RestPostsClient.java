@@ -8,6 +8,7 @@ import fctreddit.api.Post;
 import fctreddit.api.java.Result;
 import fctreddit.api.java.Result.ErrorCode;
 import fctreddit.api.rest.RestContent;
+import fctreddit.clients.java.ContentClient;
 
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
@@ -22,7 +23,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 
-public class RestPostsClient {
+public class RestPostsClient extends ContentClient {
 
     private static final Logger Log = Logger.getLogger(RestPostsClient.class.getName());
 
@@ -41,7 +42,7 @@ public class RestPostsClient {
         config.property(ClientProperties.READ_TIMEOUT, READ_TIMEOUT);
         config.property(ClientProperties.CONNECT_TIMEOUT, CONNECT_TIMEOUT);
         this.client = ClientBuilder.newClient(config);
-        this.target = client.target(serverURI).path(RestContent.PATH);
+        this.target = client.target(this.serverURI).path(RestContent.PATH);
     }
 
     public Result<String> createPost(Post post, String password) {
@@ -180,11 +181,26 @@ public class RestPostsClient {
         return Result.error(ErrorCode.TIMEOUT);
     }
 
-    public Result<Void> vote(String postId, String userId, String password, boolean upvote, boolean remove) {
-        String action = upvote ? RestContent.UPVOTE : RestContent.DOWNVOTE;
+    public Result<Void> upVotePost(String postId, String userId, String password) {
+        return voteAction(postId, userId, password, RestContent.UPVOTE, false);
+    }
+    
+    public Result<Void> downVotePost(String postId, String userId, String password) {
+        return voteAction(postId, userId, password, RestContent.DOWNVOTE, false);
+    }
+    
+    public Result<Void> removeUpVotePost(String postId, String userId, String password) {
+        return voteAction(postId, userId, password, RestContent.UPVOTE, true);
+    }
+    
+    public Result<Void> removeDownVotePost(String postId, String userId, String password) {
+        return voteAction(postId, userId, password, RestContent.DOWNVOTE, true);
+    }
+    
+    private Result<Void> voteAction(String postId, String userId, String password, String voteType, boolean remove) {
         for (int i = 0; i < MAX_RETRIES; i++) {
             try {
-                var voteTarget = target.path(postId).path(action).path(userId)
+                var voteTarget = target.path(postId).path(voteType).path(userId)
                         .queryParam(RestContent.PASSWORD, password)
                         .request()
                         .accept(MediaType.APPLICATION_JSON);
@@ -203,12 +219,12 @@ public class RestPostsClient {
         }
         return Result.error(ErrorCode.TIMEOUT);
     }
+    
 
-    public Result<Integer> getVotes(String postId, boolean upvote) {
-        String action = upvote ? RestContent.UPVOTE : RestContent.DOWNVOTE;
+    public Result<Integer> getUpVotes(String postId) {
         for (int i = 0; i < MAX_RETRIES; i++) {
             try {
-                Response r = target.path(postId).path(action)
+                Response r = target.path(postId).path(RestContent.UPVOTE)
                         .request()
                         .accept(MediaType.APPLICATION_JSON)
                         .get();
@@ -225,6 +241,28 @@ public class RestPostsClient {
         }
         return Result.error(ErrorCode.TIMEOUT);
     }
+    
+    public Result<Integer> getDownVotes(String postId) {
+        for (int i = 0; i < MAX_RETRIES; i++) {
+            try {
+                Response r = target.path(postId).path(RestContent.DOWNVOTE)
+                        .request()
+                        .accept(MediaType.APPLICATION_JSON)
+                        .get();
+                if (r.getStatus() != Status.OK.getStatusCode()) {
+                    return Result.error(getErrorCodeFrom(r.getStatus()));
+                }
+                return Result.ok(r.readEntity(Integer.class));
+            } catch (ProcessingException e) {
+                Log.info("ProcessingException: " + e.getMessage());
+                retryWait();
+            } catch (Exception e) {
+                Log.severe("Exception: " + e.getMessage());
+            }
+        }
+        return Result.error(ErrorCode.TIMEOUT);
+    }
+    
 
     public Result<Void> nullifyPostAuthors(String userId) {
         for (int i = 0; i < MAX_RETRIES; i++) {

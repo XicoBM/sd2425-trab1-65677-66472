@@ -4,7 +4,7 @@ import fctreddit.api.Post;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.GrpcPost;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.GrpcPost.Builder;
 
-public class DataModelAdaptarPosts {
+public class DataModelAdaptorPosts {
     public static GrpcPost Post_to_GrpcPost( Post from )  {
 		Builder b = GrpcPost.newBuilder();
 		

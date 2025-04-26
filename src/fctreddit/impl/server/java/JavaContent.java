@@ -11,6 +11,10 @@ import org.hibernate.Session;
 import fctreddit.api.java.Content;
 import fctreddit.api.java.Result;
 import fctreddit.api.java.Result.ErrorCode;
+import fctreddit.clients.grpc.GrpcImagesClient;
+import fctreddit.clients.grpc.GrpcUsersClient;
+import fctreddit.clients.java.ImageClient;
+import fctreddit.clients.java.UsersClient;
 import fctreddit.clients.rest.RestImagesClient;
 import fctreddit.clients.rest.RestUsersClient;
 import fctreddit.impl.server.discovery.Discovery;
@@ -25,57 +29,111 @@ import jakarta.persistence.TypedQuery;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response.Status;
 
-
-
 public class JavaContent implements Content {
     private static Logger Log = Logger.getLogger(JavaContent.class.getName());
 
-    private final Discovery discovery = Discovery.getInstance();
-
-    private final RestUsersClient restUsersClient; 
-    private final RestImagesClient restImagesClient; 
+    private Discovery discovery = Discovery.getInstance();
+    
+    private UsersClient usersClient;
+    private ImageClient imageClient;
 
     private Hibernate hibernate;
 
-public JavaContent() {
-    this.hibernate = Hibernate.getInstance();
-
-    List<String> usersServiceUris = discovery.knownUrisOf("Users");
-    if (usersServiceUris == null || usersServiceUris.isEmpty()) {
-        throw new IllegalStateException("No known URIs for Users service found");
+    public JavaContent() {
+        hibernate = Hibernate.getInstance();
     }
-    URI usersUri = URI.create(usersServiceUris.get(0));
-    this.restUsersClient = new RestUsersClient(usersUri);
-    Log.info("RestUsersClient created with URI: " + usersUri);
 
-    List<String> imagesServiceUris = discovery.knownUrisOf("Image");
-    if (imagesServiceUris == null || imagesServiceUris.isEmpty()) {
-        throw new IllegalStateException("No known URIs for Images service found");
+    private boolean initializeImageClient() {
+        if (imageClient != null) {
+            return true; 
+        }
+
+        synchronized (this) {
+            if (imageClient != null) {
+                return true;
+            }
+
+            List<String> imagesServiceUris = discovery.knownUrisOf("Images");
+            if (imagesServiceUris.isEmpty()) {
+                Log.warning("No known URIs for Images service found");
+                return false;
+            }
+
+            try {
+                URI imagesUri = URI.create(imagesServiceUris.get(0));
+                if (imagesUri.getScheme().equals("http")) {
+                    imageClient = new RestImagesClient(imagesUri);
+                } else if (imagesUri.getScheme().equals("grpc")) {
+                    imageClient = new GrpcImagesClient(imagesUri);
+                } else {
+                    throw new IllegalArgumentException("Unsupported URI scheme: " + imagesUri.getScheme());
+                }
+                return true;
+            } catch (Exception e) {
+                Log.severe("Failed to initialize ImageClient: " + e.getMessage());
+                return false;
+            }
+        }
     }
-    URI imagesUri = URI.create(imagesServiceUris.get(0));
-    this.restImagesClient = new RestImagesClient(imagesUri);  
-    Log.info("RestImagesClient created with URI: " + imagesUri);
-}
+
+    private boolean initializeUsersClient() {
+        if (usersClient != null) {
+            return true;
+        }
+
+        synchronized (this) {
+            if (usersClient != null) {
+                return true;
+            }
+
+            List<String> usersServiceUris = discovery.knownUrisOf("Users");
+            if (usersServiceUris.isEmpty()) {
+                Log.warning("No known URIs for Users service found");
+                return false;
+            }
+
+            try {
+                URI usersUri = URI.create(usersServiceUris.get(0));
+                if (usersUri.getScheme().equals("http")) {
+                    usersClient = new RestUsersClient(usersUri);
+                } else if (usersUri.getScheme().equals("grpc")) {
+                    usersClient = new GrpcUsersClient(usersUri);
+                } else {
+                    throw new IllegalArgumentException("Unsupported URI scheme: " + usersUri.getScheme());
+                }
+                return true;
+            } catch (Exception e) {
+                Log.severe("Failed to initialize UsersClient: " + e.getMessage());
+                return false;
+            }
+        }
+    }
 
     private User getUser(String userId) {
-    Result<User> result = restUsersClient.getUserAux(userId);
-
-    if (result == null || !result.isOK()) {
-        if (result != null && result.error() == ErrorCode.NOT_FOUND) {
-            Log.info("User does not exist.");
-        } else {
-            Log.severe("Failed to retrieve user with ID: " + userId);
+        if (!initializeUsersClient()) {
+            Log.warning("Cannot retrieve user due to unavailable Users service");
+            return null;
         }
-        return null;
+
+        Result<User> result = usersClient.getUserAux(userId);
+        if (result == null || !result.isOK()) {
+            if (result != null && result.error() == ErrorCode.NOT_FOUND) {
+                Log.info("User does not exist.");
+            } else {
+                Log.severe("Failed to retrieve user with ID: " + userId);
+            }
+            return null;
+        }
+        return result.value();
     }
 
-    return result.value();
-}   
-
-    
     private void deleteImage(String imageId, String userId, String password) {
-        Result<Void> result = restImagesClient.deleteImage(userId, imageId, password);
+        if (!initializeImageClient()) {
+            Log.warning("Skipping image deletion due to unavailable Images service");
+            return;
+        }
 
+        Result<Void> result = imageClient.deleteImage(userId, imageId, password);
         if (result == null || !result.isOK()) {
             if (result != null && result.error() == ErrorCode.NOT_FOUND) {
                 Log.info("Image does not exist.");
@@ -86,6 +144,7 @@ public JavaContent() {
             Log.info("Image deleted successfully.");
         }
     }
+
 
 @Override
 public Result<String> createPost(Post post, String userPassword) {
@@ -548,7 +607,7 @@ public Result<List<String>> getPosts(long timestamp, String sortOrder) {
     }
 
     @Override
-    public Result<Integer> getupVotes(String postId) {
+    public Result<Integer> getUpVotes(String postId) {
         Log.info("getupVotes called with postId: " + postId);
 
         Post post = hibernate.get(Post.class, postId);

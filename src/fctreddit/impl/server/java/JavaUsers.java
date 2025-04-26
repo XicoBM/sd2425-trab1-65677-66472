@@ -6,6 +6,10 @@ import java.util.List;
 
 import fctreddit.api.User;
 import fctreddit.api.java.Users;
+import fctreddit.clients.grpc.GrpcContentClient;
+import fctreddit.clients.grpc.GrpcImagesClient;
+import fctreddit.clients.java.ContentClient;
+import fctreddit.clients.java.ImageClient;
 import fctreddit.clients.rest.RestImagesClient;
 import fctreddit.clients.rest.RestPostsClient;
 import fctreddit.api.java.Result;
@@ -17,34 +21,76 @@ public class JavaUsers implements Users {
 
     private static Logger Log = Logger.getLogger(JavaUsers.class.getName());
 
-    private final Discovery discovery = Discovery.getInstance();
+    
+    private ContentClient contentClient;
+    
+    private ImageClient imageClient;
 
-    private final RestPostsClient restPostsClient; 
-    private final RestImagesClient restImagesClient; 
+    private Discovery discovery = Discovery.getInstance();
 
     private Hibernate hibernate;
 
     public JavaUsers() {
         hibernate = Hibernate.getInstance();
-
-        List<String> contentServiceUris = discovery.knownUrisOf("Content");
-        if (contentServiceUris.isEmpty()) {
-            throw new IllegalStateException("No known URIs for Content service found");
-        }
-        URI contentUri = URI.create(contentServiceUris.get(0));
-        this.restPostsClient = new RestPostsClient(contentUri);
-
-        List<String> imagesServiceUris = discovery.knownUrisOf("Image");
-        if (imagesServiceUris.isEmpty()) {
-            throw new IllegalStateException("No known URIs for Images service found");
-        }
-        URI imagesUri = URI.create(imagesServiceUris.get(0));
-        this.restImagesClient = new RestImagesClient(imagesUri);  
     }
 
-    private void deleteImage(String imageId, String userId, String password) {
-        Result<Void> result = restImagesClient.deleteImage(userId, imageId, password);
+    private boolean initializeImageClient() {
+        if (imageClient != null) {
+            return true; 
+        }
+        List<String> imagesServiceUris = discovery.knownUrisOf("Image");
+        if (imagesServiceUris.isEmpty()) {
+            Log.warning("No known URIs for Images service found");
+            return false;
+        }
+        try {
+            URI imagesUri = URI.create(imagesServiceUris.get(0));
+            if (imagesUri.getScheme().equals("http")) {
+                imageClient = new RestImagesClient(imagesUri);
+            } else if (imagesUri.getScheme().equals("grpc")) {
+                imageClient = new GrpcImagesClient(imagesUri);
+            } else {
+                throw new IllegalArgumentException("Unsupported URI scheme: " + imagesUri.getScheme());
+            }
+            return true;
+        } catch (Exception e) {
+            Log.severe("Failed to initialize ImageClient: " + e.getMessage());
+            return false;
+        }
+    }
 
+    private boolean initializeContentClient() {
+        if (contentClient != null) {
+            return true; 
+        }
+        List<String> contentServiceUris = discovery.knownUrisOf("Content");
+        if (contentServiceUris.isEmpty()) {
+            Log.warning("No known URIs for Content service found");
+            return false;
+        }
+        try {
+            URI contentUri = URI.create(contentServiceUris.get(0));
+            if (contentUri.getScheme().equals("http")) {
+                contentClient = new RestPostsClient(contentUri);
+            } else if (contentUri.getScheme().equals("grpc")) {
+                contentClient = new GrpcContentClient(contentUri);
+            } else {
+                throw new IllegalArgumentException("Unsupported URI scheme: " + contentUri.getScheme());
+            }
+            return true;
+        } catch (Exception e) {
+            Log.severe("Failed to initialize ContentClient: " + e.getMessage());
+            return false;
+        }
+    }
+
+private void deleteImage(String imageId, String userId, String password) {
+        if (!initializeImageClient()) {
+            Log.warning("Skipping image deletion due to unavailable Images service");
+            return;
+        }
+
+        Result<Void> result = imageClient.deleteImage(userId, imageId, password);
         if (result == null || !result.isOK()) {
             if (result != null && result.error() == ErrorCode.NOT_FOUND) {
                 Log.info("Image does not exist.");
@@ -57,8 +103,12 @@ public class JavaUsers implements Users {
     }
 
     private void deleteVotesFromUser(String userId) {
-        Result<Void> result = restPostsClient.deleteVotesFromUser(userId);
+        if (!initializeContentClient()) {
+            Log.warning("Skipping votes deletion due to unavailable Content service");
+            return;
+        }
 
+        Result<Void> result = contentClient.deleteVotesFromUser(userId);
         if (result == null || !result.isOK()) {
             if (result != null && result.error() == ErrorCode.NOT_FOUND) {
                 Log.info("Votes do not exist.");
@@ -71,24 +121,21 @@ public class JavaUsers implements Users {
     }
 
     private void nullifyPostAuthors(String userId) {
-        Log.info("========== NULLIFY POST AUTHORS ==========");
-        Log.info(">>> [CALL] nullifyPostAuthors called for user: " + userId);
-    
-        Result<Void> result = restPostsClient.nullifyPostAuthors(userId);
-    
+        if (!initializeContentClient()) {
+            Log.warning("Skipping post nullification due to unavailable Content service");
+            return;
+        }
+        Result<Void> result = contentClient.nullifyPostAuthors(userId);
         if (result == null || !result.isOK()) {
             if (result != null && result.error() == ErrorCode.NOT_FOUND) {
-                Log.warning(">>> [RESULT] No posts found to nullify for user: " + userId);
+                Log.warning("No posts found to nullify for user: " + userId);
             } else {
-                Log.severe(">>> [ERROR] Failed to nullify posts for user: " + userId);
+                Log.severe("Failed to nullify posts for user: " + userId);
             }
         } else {
-            Log.info(">>> [SUCCESS] All posts by user " + userId + " were successfully nullified.");
+            Log.info("All posts by user " + userId + " were successfully nullified.");
         }
-        Log.info("==========================================");
     }
-    
-
     @Override
     public Result<String> createUser(User user) {
         Log.info("createUser : " + user);
@@ -109,9 +156,10 @@ public class JavaUsers implements Users {
 
         try {
             hibernate.persist(user);
+            Log.info("User persisted successfully: " + user.getUserId());
         } catch (Exception e) {
-            e.printStackTrace(); 
-            Log.info("Unable to store user.");
+            Log.severe("Failed to persist user: " + e.getMessage());
+            e.printStackTrace();
             return Result.error(ErrorCode.INTERNAL_ERROR);
         }
 
@@ -136,23 +184,20 @@ public class JavaUsers implements Users {
             return Result.error(ErrorCode.INTERNAL_ERROR);
         }
 
-        // Check if user exists
         if (user == null) {
             Log.info("User does not exist.");
             return Result.error(ErrorCode.NOT_FOUND);
         }
 
-        // Check if the password is correct
         if (password == null || !user.getPassword().equals(password)) {
             Log.info("Password is incorrect");
             return Result.error(ErrorCode.FORBIDDEN);
         }
 
         return Result.ok(user);
-
     }
 
-        @Override
+    @Override
     public Result<User> updateUser(String userId, String password, User updatedUser) {
         Log.info("updateUser : " + userId);
 
@@ -179,16 +224,15 @@ public class JavaUsers implements Users {
             return Result.error(ErrorCode.FORBIDDEN);
         }
 
-       
-		if (updatedUser.getFullName() != null) {
-			existingUser.setFullName(updatedUser.getFullName());
-		}
-		if (updatedUser.getEmail() != null) {
-			existingUser.setEmail(updatedUser.getEmail());
-		}
-		if (updatedUser.getPassword() != null) {
-			existingUser.setPassword(updatedUser.getPassword());
-		}
+        if (updatedUser.getFullName() != null) {
+            existingUser.setFullName(updatedUser.getFullName());
+        }
+        if (updatedUser.getEmail() != null) {
+            existingUser.setEmail(updatedUser.getEmail());
+        }
+        if (updatedUser.getPassword() != null) {
+            existingUser.setPassword(updatedUser.getPassword());
+        }
         if (updatedUser.getAvatarUrl() != null) {
             existingUser.setAvatarUrl(updatedUser.getAvatarUrl());
         }
@@ -230,13 +274,15 @@ public class JavaUsers implements Users {
             return Result.error(ErrorCode.FORBIDDEN);
         }
 
-        deleteVotesFromUser(userId);
-        nullifyPostAuthors(userId);
+        
+            deleteVotesFromUser(userId);
+            nullifyPostAuthors(userId);
+
         if (user.getAvatarUrl() != null) {
             String imageUrl = user.getAvatarUrl();
             String id = imageUrl.substring(imageUrl.lastIndexOf('/') + 1, imageUrl.lastIndexOf('.'));
-            deleteImage(id, userId, password);
-        }     
+                deleteImage(id, userId, password);
+        }
 
         try {
             hibernate.delete(user);
@@ -258,7 +304,7 @@ public class JavaUsers implements Users {
         }
 
         try {
-			List<User> users = hibernate.jpql("SELECT u FROM User u WHERE u.userId LIKE '%" + pattern +"%'", User.class);
+            List<User> users = hibernate.jpql("SELECT u FROM User u WHERE u.userId LIKE '%" + pattern + "%'", User.class);
             return Result.ok(users);
         } catch (Exception e) {
             e.printStackTrace();

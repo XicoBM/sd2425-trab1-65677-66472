@@ -387,6 +387,68 @@ public final class ContentGrpc {
     return getGetDownVotesMethod;
   }
 
+  private static volatile io.grpc.MethodDescriptor<fctreddit.impl.grpc.generated_java.ContentProtoBuf.DeleteVotesArgs,
+      fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage> getDeleteVotesFromUserMethod;
+
+  @io.grpc.stub.annotations.RpcMethod(
+      fullMethodName = SERVICE_NAME + '/' + "deleteVotesFromUser",
+      requestType = fctreddit.impl.grpc.generated_java.ContentProtoBuf.DeleteVotesArgs.class,
+      responseType = fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage.class,
+      methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
+  public static io.grpc.MethodDescriptor<fctreddit.impl.grpc.generated_java.ContentProtoBuf.DeleteVotesArgs,
+      fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage> getDeleteVotesFromUserMethod() {
+    io.grpc.MethodDescriptor<fctreddit.impl.grpc.generated_java.ContentProtoBuf.DeleteVotesArgs, fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage> getDeleteVotesFromUserMethod;
+    if ((getDeleteVotesFromUserMethod = ContentGrpc.getDeleteVotesFromUserMethod) == null) {
+      synchronized (ContentGrpc.class) {
+        if ((getDeleteVotesFromUserMethod = ContentGrpc.getDeleteVotesFromUserMethod) == null) {
+          ContentGrpc.getDeleteVotesFromUserMethod = getDeleteVotesFromUserMethod =
+              io.grpc.MethodDescriptor.<fctreddit.impl.grpc.generated_java.ContentProtoBuf.DeleteVotesArgs, fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage>newBuilder()
+              .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
+              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "deleteVotesFromUser"))
+              .setSampledToLocalTracing(true)
+              .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  fctreddit.impl.grpc.generated_java.ContentProtoBuf.DeleteVotesArgs.getDefaultInstance()))
+              .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage.getDefaultInstance()))
+              .setSchemaDescriptor(new ContentMethodDescriptorSupplier("deleteVotesFromUser"))
+              .build();
+        }
+      }
+    }
+    return getDeleteVotesFromUserMethod;
+  }
+
+  private static volatile io.grpc.MethodDescriptor<fctreddit.impl.grpc.generated_java.ContentProtoBuf.NullifyAuthorsArgs,
+      fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage> getNullifyPostAuthorsMethod;
+
+  @io.grpc.stub.annotations.RpcMethod(
+      fullMethodName = SERVICE_NAME + '/' + "nullifyPostAuthors",
+      requestType = fctreddit.impl.grpc.generated_java.ContentProtoBuf.NullifyAuthorsArgs.class,
+      responseType = fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage.class,
+      methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
+  public static io.grpc.MethodDescriptor<fctreddit.impl.grpc.generated_java.ContentProtoBuf.NullifyAuthorsArgs,
+      fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage> getNullifyPostAuthorsMethod() {
+    io.grpc.MethodDescriptor<fctreddit.impl.grpc.generated_java.ContentProtoBuf.NullifyAuthorsArgs, fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage> getNullifyPostAuthorsMethod;
+    if ((getNullifyPostAuthorsMethod = ContentGrpc.getNullifyPostAuthorsMethod) == null) {
+      synchronized (ContentGrpc.class) {
+        if ((getNullifyPostAuthorsMethod = ContentGrpc.getNullifyPostAuthorsMethod) == null) {
+          ContentGrpc.getNullifyPostAuthorsMethod = getNullifyPostAuthorsMethod =
+              io.grpc.MethodDescriptor.<fctreddit.impl.grpc.generated_java.ContentProtoBuf.NullifyAuthorsArgs, fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage>newBuilder()
+              .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
+              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "nullifyPostAuthors"))
+              .setSampledToLocalTracing(true)
+              .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  fctreddit.impl.grpc.generated_java.ContentProtoBuf.NullifyAuthorsArgs.getDefaultInstance()))
+              .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage.getDefaultInstance()))
+              .setSchemaDescriptor(new ContentMethodDescriptorSupplier("nullifyPostAuthors"))
+              .build();
+        }
+      }
+    }
+    return getNullifyPostAuthorsMethod;
+  }
+
   /**
    * Creates a new async stub that supports all call types for the service
    */
@@ -518,6 +580,20 @@ public final class ContentGrpc {
         io.grpc.stub.StreamObserver<fctreddit.impl.grpc.generated_java.ContentProtoBuf.VoteCountResult> responseObserver) {
       io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getGetDownVotesMethod(), responseObserver);
     }
+
+    /**
+     */
+    default void deleteVotesFromUser(fctreddit.impl.grpc.generated_java.ContentProtoBuf.DeleteVotesArgs request,
+        io.grpc.stub.StreamObserver<fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage> responseObserver) {
+      io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getDeleteVotesFromUserMethod(), responseObserver);
+    }
+
+    /**
+     */
+    default void nullifyPostAuthors(fctreddit.impl.grpc.generated_java.ContentProtoBuf.NullifyAuthorsArgs request,
+        io.grpc.stub.StreamObserver<fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage> responseObserver) {
+      io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getNullifyPostAuthorsMethod(), responseObserver);
+    }
   }
 
   /**
@@ -642,6 +718,22 @@ public final class ContentGrpc {
       io.grpc.stub.ClientCalls.asyncUnaryCall(
           getChannel().newCall(getGetDownVotesMethod(), getCallOptions()), request, responseObserver);
     }
+
+    /**
+     */
+    public void deleteVotesFromUser(fctreddit.impl.grpc.generated_java.ContentProtoBuf.DeleteVotesArgs request,
+        io.grpc.stub.StreamObserver<fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage> responseObserver) {
+      io.grpc.stub.ClientCalls.asyncUnaryCall(
+          getChannel().newCall(getDeleteVotesFromUserMethod(), getCallOptions()), request, responseObserver);
+    }
+
+    /**
+     */
+    public void nullifyPostAuthors(fctreddit.impl.grpc.generated_java.ContentProtoBuf.NullifyAuthorsArgs request,
+        io.grpc.stub.StreamObserver<fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage> responseObserver) {
+      io.grpc.stub.ClientCalls.asyncUnaryCall(
+          getChannel().newCall(getNullifyPostAuthorsMethod(), getCallOptions()), request, responseObserver);
+    }
   }
 
   /**
@@ -742,6 +834,20 @@ public final class ContentGrpc {
     public fctreddit.impl.grpc.generated_java.ContentProtoBuf.VoteCountResult getDownVotes(fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostArgs request) {
       return io.grpc.stub.ClientCalls.blockingUnaryCall(
           getChannel(), getGetDownVotesMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage deleteVotesFromUser(fctreddit.impl.grpc.generated_java.ContentProtoBuf.DeleteVotesArgs request) {
+      return io.grpc.stub.ClientCalls.blockingUnaryCall(
+          getChannel(), getDeleteVotesFromUserMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage nullifyPostAuthors(fctreddit.impl.grpc.generated_java.ContentProtoBuf.NullifyAuthorsArgs request) {
+      return io.grpc.stub.ClientCalls.blockingUnaryCall(
+          getChannel(), getNullifyPostAuthorsMethod(), getCallOptions(), request);
     }
   }
 
@@ -856,6 +962,22 @@ public final class ContentGrpc {
       return io.grpc.stub.ClientCalls.futureUnaryCall(
           getChannel().newCall(getGetDownVotesMethod(), getCallOptions()), request);
     }
+
+    /**
+     */
+    public com.google.common.util.concurrent.ListenableFuture<fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage> deleteVotesFromUser(
+        fctreddit.impl.grpc.generated_java.ContentProtoBuf.DeleteVotesArgs request) {
+      return io.grpc.stub.ClientCalls.futureUnaryCall(
+          getChannel().newCall(getDeleteVotesFromUserMethod(), getCallOptions()), request);
+    }
+
+    /**
+     */
+    public com.google.common.util.concurrent.ListenableFuture<fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage> nullifyPostAuthors(
+        fctreddit.impl.grpc.generated_java.ContentProtoBuf.NullifyAuthorsArgs request) {
+      return io.grpc.stub.ClientCalls.futureUnaryCall(
+          getChannel().newCall(getNullifyPostAuthorsMethod(), getCallOptions()), request);
+    }
   }
 
   private static final int METHODID_CREATE_POST = 0;
@@ -870,6 +992,8 @@ public final class ContentGrpc {
   private static final int METHODID_REMOVE_DOWN_VOTE_POST = 9;
   private static final int METHODID_GET_UP_VOTES = 10;
   private static final int METHODID_GET_DOWN_VOTES = 11;
+  private static final int METHODID_DELETE_VOTES_FROM_USER = 12;
+  private static final int METHODID_NULLIFY_POST_AUTHORS = 13;
 
   private static final class MethodHandlers<Req, Resp> implements
       io.grpc.stub.ServerCalls.UnaryMethod<Req, Resp>,
@@ -935,6 +1059,14 @@ public final class ContentGrpc {
         case METHODID_GET_DOWN_VOTES:
           serviceImpl.getDownVotes((fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostArgs) request,
               (io.grpc.stub.StreamObserver<fctreddit.impl.grpc.generated_java.ContentProtoBuf.VoteCountResult>) responseObserver);
+          break;
+        case METHODID_DELETE_VOTES_FROM_USER:
+          serviceImpl.deleteVotesFromUser((fctreddit.impl.grpc.generated_java.ContentProtoBuf.DeleteVotesArgs) request,
+              (io.grpc.stub.StreamObserver<fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage>) responseObserver);
+          break;
+        case METHODID_NULLIFY_POST_AUTHORS:
+          serviceImpl.nullifyPostAuthors((fctreddit.impl.grpc.generated_java.ContentProtoBuf.NullifyAuthorsArgs) request,
+              (io.grpc.stub.StreamObserver<fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage>) responseObserver);
           break;
         default:
           throw new AssertionError();
@@ -1038,6 +1170,20 @@ public final class ContentGrpc {
               fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostArgs,
               fctreddit.impl.grpc.generated_java.ContentProtoBuf.VoteCountResult>(
                 service, METHODID_GET_DOWN_VOTES)))
+        .addMethod(
+          getDeleteVotesFromUserMethod(),
+          io.grpc.stub.ServerCalls.asyncUnaryCall(
+            new MethodHandlers<
+              fctreddit.impl.grpc.generated_java.ContentProtoBuf.DeleteVotesArgs,
+              fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage>(
+                service, METHODID_DELETE_VOTES_FROM_USER)))
+        .addMethod(
+          getNullifyPostAuthorsMethod(),
+          io.grpc.stub.ServerCalls.asyncUnaryCall(
+            new MethodHandlers<
+              fctreddit.impl.grpc.generated_java.ContentProtoBuf.NullifyAuthorsArgs,
+              fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage>(
+                service, METHODID_NULLIFY_POST_AUTHORS)))
         .build();
   }
 
@@ -1098,6 +1244,8 @@ public final class ContentGrpc {
               .addMethod(getRemoveDownVotePostMethod())
               .addMethod(getGetUpVotesMethod())
               .addMethod(getGetDownVotesMethod())
+              .addMethod(getDeleteVotesFromUserMethod())
+              .addMethod(getNullifyPostAuthorsMethod())
               .build();
         }
       }

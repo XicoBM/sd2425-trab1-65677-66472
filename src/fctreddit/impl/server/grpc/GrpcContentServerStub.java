@@ -14,19 +14,25 @@ import fctreddit.impl.grpc.generated_java.ContentGrpc;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.CreatePostArgs;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.CreatePostResult;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.DeletePostArgs;
+import fctreddit.impl.grpc.generated_java.ContentProtoBuf.DeleteVotesArgs;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.EmptyMessage;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostAnswersArgs;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostArgs;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostsArgs;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.GetPostsResult;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.GrpcPost;
+import fctreddit.impl.grpc.generated_java.ContentProtoBuf.NullifyAuthorsArgs;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.UpdatePostArgs;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf.ChangeVoteArgs;
-import fctreddit.impl.grpc.util.DataModelAdaptarPosts;
+import fctreddit.impl.grpc.util.DataModelAdaptorPosts;
 
 public class GrpcContentServerStub implements ContentGrpc.AsyncService, BindableService {
 
-    Content impl = new JavaContent();
+    Content impl;
+
+    public GrpcContentServerStub() {
+        this.impl = new JavaContent();
+    }
 
     @Override
     public ServerServiceDefinition bindService() {
@@ -35,7 +41,7 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
 
     @Override
     public void createPost(CreatePostArgs request, StreamObserver<CreatePostResult> responseObserver) {
-        Result<String> res = impl.createPost(DataModelAdaptarPosts.GrpcPost_to_Post(request.getPost()),
+        Result<String> res = impl.createPost(DataModelAdaptorPosts.GrpcPost_to_Post(request.getPost()),
                 request.getPassword());
         if (!res.isOK())
             responseObserver.onError(errorCodeToStatus(res.error()));
@@ -62,7 +68,7 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
         if (!res.isOK())
             responseObserver.onError(errorCodeToStatus(res.error()));
         else {
-            responseObserver.onNext(DataModelAdaptarPosts.Post_to_GrpcPost(res.value()));
+            responseObserver.onNext(DataModelAdaptorPosts.Post_to_GrpcPost(res.value()));
             responseObserver.onCompleted();
         }
     }
@@ -82,11 +88,11 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
     @Override
     public void updatePost(UpdatePostArgs request, StreamObserver<GrpcPost> responseObserver) {
         Result<Post> res = impl.updatePost(request.getPostId(), request.getPassword(),
-                DataModelAdaptarPosts.GrpcPost_to_Post(request.getPost()));
+                DataModelAdaptorPosts.GrpcPost_to_Post(request.getPost()));
         if (!res.isOK())
             responseObserver.onError(errorCodeToStatus(res.error()));
         else {
-            responseObserver.onNext(DataModelAdaptarPosts.Post_to_GrpcPost(res.value()));
+            responseObserver.onNext(DataModelAdaptorPosts.Post_to_GrpcPost(res.value()));
             responseObserver.onCompleted();
         }
     }
@@ -146,8 +152,9 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
         }
     }
 
-    public void getUpVotePost(GrpcPost request, StreamObserver<EmptyMessage> responseObserver) {
-        Result<Integer> res = impl.getupVotes(request.getPostId());
+    @Override
+    public void deleteVotesFromUser(DeleteVotesArgs request, StreamObserver<EmptyMessage> responseObserver) {
+        Result<Void> res = impl.deleteVotesFromUser(request.getUserId());
         if (!res.isOK())
             responseObserver.onError(errorCodeToStatus(res.error()));
         else {
@@ -155,9 +162,10 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
             responseObserver.onCompleted();
         }
     }
-    
-    public void getDownVotePost(GrpcPost request, StreamObserver<EmptyMessage> responseObserver) {
-        Result<Integer> res = impl.getDownVotes(request.getPostId());
+
+    @Override
+    public void nullifyPostAuthors(NullifyAuthorsArgs request, StreamObserver<EmptyMessage> responseObserver) {
+        Result<Void> res = impl.nullifyPostAuthors(request.getUserId());
         if (!res.isOK())
             responseObserver.onError(errorCodeToStatus(res.error()));
         else {
@@ -165,6 +173,7 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
             responseObserver.onCompleted();
         }
     }
+
 
     protected static Throwable errorCodeToStatus(Result.ErrorCode error) {
         var status = switch (error) {

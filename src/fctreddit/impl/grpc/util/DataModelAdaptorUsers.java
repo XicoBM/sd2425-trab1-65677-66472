@@ -4,7 +4,7 @@ import fctreddit.api.User;
 import fctreddit.impl.grpc.generated_java.UsersProtoBuf.GrpcUser;
 import fctreddit.impl.grpc.generated_java.UsersProtoBuf.GrpcUser.Builder;
 
-public class DataModelAdaptor {
+public class DataModelAdaptorUsers {
 
 	//Notice that optional values in a Message might not have an
 	//assigned value (although for Strings default value is "") so

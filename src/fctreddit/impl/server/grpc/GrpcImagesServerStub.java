@@ -6,6 +6,8 @@ import io.grpc.stub.StreamObserver;
 import fctreddit.impl.grpc.generated_java.ImageGrpc;
 import fctreddit.impl.server.java.JavaImage;
 import fctreddit.api.java.Result;
+
+
 import fctreddit.api.java.Image;
 import fctreddit.impl.grpc.generated_java.ImageProtoBuf.CreateImageArgs;
 import fctreddit.impl.grpc.generated_java.ImageProtoBuf.CreateImageResult;
@@ -16,7 +18,11 @@ import fctreddit.impl.grpc.generated_java.ImageProtoBuf.DeleteImageResult;
 
 public class GrpcImagesServerStub implements ImageGrpc.AsyncService, BindableService {
 
-    Image impl = new JavaImage();
+    Image impl;
+
+    public GrpcImagesServerStub() {
+        this.impl = new JavaImage();
+    }
 
     @Override
     public io.grpc.ServerServiceDefinition bindService() {

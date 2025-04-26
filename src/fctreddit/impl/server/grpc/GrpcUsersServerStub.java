@@ -9,13 +9,14 @@ import io.grpc.stub.StreamObserver;
 import fctreddit.api.User;
 import fctreddit.api.java.Result;
 import fctreddit.api.java.Users;
-import fctreddit.impl.grpc.util.DataModelAdaptor;
+import fctreddit.impl.grpc.util.DataModelAdaptorUsers;
 import fctreddit.impl.grpc.generated_java.UsersGrpc;
 import fctreddit.impl.grpc.generated_java.UsersProtoBuf.CreateUserArgs;
 import fctreddit.impl.grpc.generated_java.UsersProtoBuf.CreateUserResult;
 import fctreddit.impl.grpc.generated_java.UsersProtoBuf.DeleteUserArgs;
 import fctreddit.impl.grpc.generated_java.UsersProtoBuf.DeleteUserResult;
 import fctreddit.impl.grpc.generated_java.UsersProtoBuf.GetUserArgs;
+import fctreddit.impl.grpc.generated_java.UsersProtoBuf.GetUserAuxArgs;
 import fctreddit.impl.grpc.generated_java.UsersProtoBuf.GetUserResult;
 import fctreddit.impl.grpc.generated_java.UsersProtoBuf.GrpcUser;
 import fctreddit.impl.grpc.generated_java.UsersProtoBuf.SearchUserArgs;
@@ -25,8 +26,11 @@ import fctreddit.impl.server.java.JavaUsers;
 
 public class GrpcUsersServerStub implements UsersGrpc.AsyncService, BindableService {
 
-    Users impl = new JavaUsers();
+    Users impl;
 
+    public GrpcUsersServerStub() {
+        this.impl = new JavaUsers();
+    }
     @Override
     public ServerServiceDefinition bindService() {
         return UsersGrpc.bindService(this);
@@ -34,7 +38,7 @@ public class GrpcUsersServerStub implements UsersGrpc.AsyncService, BindableServ
 
     @Override
     public void createUser(CreateUserArgs request, StreamObserver<CreateUserResult> responseObserver) {
-        Result<String> res = impl.createUser( DataModelAdaptor.GrpcUser_to_User(request.getUser()));	
+        Result<String> res = impl.createUser( DataModelAdaptorUsers.GrpcUser_to_User(request.getUser()));	
     	if( ! res.isOK() ) 
     		responseObserver.onError(errorCodeToStatus(res.error()));
     	else {
@@ -49,19 +53,32 @@ public class GrpcUsersServerStub implements UsersGrpc.AsyncService, BindableServ
 		if( ! res.isOK() )
 			responseObserver.onError(errorCodeToStatus(res.error()));
 		else {
-			responseObserver.onNext( GetUserResult.newBuilder().setUser(DataModelAdaptor.User_to_GrpcUser(res.value())).build() );
+			responseObserver.onNext( GetUserResult.newBuilder().setUser(DataModelAdaptorUsers.User_to_GrpcUser(res.value())).build() );
 			responseObserver.onCompleted();
 		}
     }
 
+
+    @Override
+    public void getUserAux(GetUserAuxArgs request, StreamObserver<GetUserResult> responseObserver) {
+        Result<User> res = impl.getUserAux(request.getUserId());
+        if (!res.isOK())
+            responseObserver.onError(errorCodeToStatus(res.error()));
+        else {
+            responseObserver.onNext(GetUserResult.newBuilder().setUser(DataModelAdaptorUsers.User_to_GrpcUser(res.value())).build());
+            responseObserver.onCompleted();
+        }
+    }
+
+
     @Override
     public void updateUser(UpdateUserArgs request, StreamObserver<UpdateUserResult> responseObserver) {
 		Result<User> res = impl.updateUser( request.getUserId(), request.getPassword(), 
-                DataModelAdaptor.GrpcUser_to_User(request.getUser()));
+                DataModelAdaptorUsers.GrpcUser_to_User(request.getUser()));
         if( ! res.isOK() )
             responseObserver.onError(errorCodeToStatus(res.error()));
         else {
-            responseObserver.onNext( UpdateUserResult.newBuilder().setUser(DataModelAdaptor.User_to_GrpcUser(res.value())).build() );
+            responseObserver.onNext( UpdateUserResult.newBuilder().setUser(DataModelAdaptorUsers.User_to_GrpcUser(res.value())).build() );
             responseObserver.onCompleted();
         }
    }
@@ -72,7 +89,7 @@ public class GrpcUsersServerStub implements UsersGrpc.AsyncService, BindableServ
         if( ! res.isOK() )
             responseObserver.onError(errorCodeToStatus(res.error()));
         else {
-            responseObserver.onNext( DeleteUserResult.newBuilder().setUser(DataModelAdaptor.User_to_GrpcUser(res.value())).build() );
+            responseObserver.onNext( DeleteUserResult.newBuilder().setUser(DataModelAdaptorUsers.User_to_GrpcUser(res.value())).build() );
             responseObserver.onCompleted();
         }
     }
@@ -85,11 +102,12 @@ public class GrpcUsersServerStub implements UsersGrpc.AsyncService, BindableServ
 			responseObserver.onError(errorCodeToStatus(res.error()));
 		else {
 			for(User u: res.value()) {
-				responseObserver.onNext( DataModelAdaptor.User_to_GrpcUser(u));
+				responseObserver.onNext( DataModelAdaptorUsers.User_to_GrpcUser(u));
 			}
 			responseObserver.onCompleted();
 		}
 	}
+
 
     protected static Throwable errorCodeToStatus(Result.ErrorCode error) {
         var status = switch (error) {
