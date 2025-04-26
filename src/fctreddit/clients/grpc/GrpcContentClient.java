@@ -59,11 +59,14 @@ public class GrpcContentClient extends ContentClient {
     @Override
     public Result<List<String>> getPosts(long timestamp, String sortOrder) {
         try {
-            GetPostsResult res = stub.getPosts(GetPostsArgs.newBuilder()
-                    .setTimestamp(timestamp)
-                    .setSortOrder(sortOrder)
-                    .build());
-            
+            GetPostsArgs.Builder argsBuilder = GetPostsArgs.newBuilder();
+            if (timestamp != 0) {
+                argsBuilder.setTimestamp(timestamp);
+            }
+            if (sortOrder != null && !sortOrder.isEmpty()) {
+                argsBuilder.setSortOrder(sortOrder);
+            }
+            GetPostsResult res = stub.getPosts(argsBuilder.build());
             return Result.ok(res.getPostIdList());
         } catch (StatusRuntimeException sre) {
             return Result.error(statusToErrorCode(sre.getStatus()));

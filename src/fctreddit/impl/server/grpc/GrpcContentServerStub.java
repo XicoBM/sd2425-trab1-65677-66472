@@ -54,15 +54,17 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
 
     @Override
     public void getPosts(GetPostsArgs request, StreamObserver<GetPostsResult> responseObserver) {
-        Result<List<String>> res = impl.getPosts(request.getTimestamp(), request.getSortOrder());
-        if (!res.isOK())
+        long timestamp = request.hasTimestamp() ? request.getTimestamp() : 0;
+        String sortOrder = request.hasSortOrder() && !request.getSortOrder().isEmpty() ? request.getSortOrder() : null;
+        Result<List<String>> res = impl.getPosts(timestamp, sortOrder);
+        if (!res.isOK()) {
             responseObserver.onError(errorCodeToStatus(res.error()));
-        else {
+        } else {
             responseObserver.onNext(GetPostsResult.newBuilder().addAllPostId(res.value()).build());
             responseObserver.onCompleted();
         }
     }
-
+    
     @Override
     public void getPost(GetPostArgs request, StreamObserver<GrpcPost> responseObserver) {
         Result<Post> res = impl.getPost(request.getPostId());
