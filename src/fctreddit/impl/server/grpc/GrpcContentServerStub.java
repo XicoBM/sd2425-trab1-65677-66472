@@ -76,8 +76,7 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
 
     @Override
     public void getPostAnswers(GetPostAnswersArgs request, StreamObserver<GetPostsResult> responseObserver) {
-        long Timeout = 3000;
-        Result<List<String>> res = impl.getPostAnswers(request.getPostId(), Timeout);
+        Result<List<String>> res = impl.getPostAnswers(request.getPostId(), request.getTimeout());
         if (!res.isOK())
             responseObserver.onError(errorCodeToStatus(res.error()));
         else {
@@ -85,6 +84,7 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
             responseObserver.onCompleted();
         } 
     }
+    
 
     @Override
     public void updatePost(UpdatePostArgs request, StreamObserver<GrpcPost> responseObserver) {
