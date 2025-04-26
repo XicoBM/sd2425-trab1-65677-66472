@@ -22,28 +22,40 @@ public class DataModelAdaptorPosts {
 	
         if(from.getMediaUrl() != null)
             b.setMediaUrl(from.getMediaUrl());
+        
+        if(from.getUpVote() != 0)
+            b.setUpVote(from.getUpVote());
+
+        if(from.getDownVote() != 0)
+            b.setDownVote(from.getDownVote());
 
 		return b.build();
 	}
 
-    public static Post GrpcPost_to_Post( GrpcPost from )  {
+    public static Post GrpcPost_to_Post(GrpcPost from) {
         Post p = new Post();
-        
-        if(from.hasPostId())
-            p.setPostId( from.getPostId());
-        
-        if(from.hasContent())
-            p.setContent( from.getContent());
-        
-        if(from.hasAuthorId())
-            p.setAuthorId( from.getAuthorId());
 
-        if(from.hasParentUrl())
+        if (from.hasPostId())
+            p.setPostId(from.getPostId());
+
+        if (from.hasContent())
+            p.setContent(from.getContent());
+
+        if (from.hasAuthorId())
+            p.setAuthorId(from.getAuthorId());
+
+        if (from.hasParentUrl())
             p.setParentUrl(from.getParentUrl());
 
-        if(from.hasMediaUrl())
+        if (from.hasMediaUrl())
             p.setMediaUrl(from.getMediaUrl());
-        
+
+        if (from.hasUpVote())
+            p.setUpVote(from.getUpVote());
+
+        if (from.hasDownVote())
+            p.setDownVote(from.getDownVote());
+
         return p;
     }
 }
