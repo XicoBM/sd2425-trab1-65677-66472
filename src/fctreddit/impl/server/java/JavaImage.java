@@ -115,8 +115,12 @@ public class JavaImage implements Image {
             Files.write(Paths.get(imagePath), imageContents);
 
             String serverIp = InetAddress.getLocalHost().getHostAddress();
-            String imageUrl = String.format("http://%s:8082/rest/image/%s/%s.png", serverIp, userId, imageId);
-
+            String imageUrl = null;
+            if (usersClient instanceof RestUsersClient) {
+                imageUrl = String.format("http://%s:8082/rest/image/%s/%s.png", serverIp, userId, imageId);
+            } else if (usersClient instanceof GrpcUsersClient) {
+                imageUrl = String.format("grpc://%s:9001/grpc/image/%s/%s.png", serverIp, userId, imageId);
+            } 
             return Result.ok(imageUrl);
 
         } catch (IOException e) {

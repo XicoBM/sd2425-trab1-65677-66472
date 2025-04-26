@@ -53,7 +53,7 @@ public class JavaContent implements Content {
                 return true;
             }
 
-            List<String> imagesServiceUris = discovery.knownUrisOf("Images");
+            List<String> imagesServiceUris = discovery.knownUrisOf("Image");
             if (imagesServiceUris.isEmpty()) {
                 Log.warning("No known URIs for Images service found");
                 return false;
@@ -166,10 +166,11 @@ public Result<String> createPost(Post post, String userPassword) {
             return Result.error(ErrorCode.NOT_FOUND);
         }
     }
-    
+
+    String postId = UUID.randomUUID().toString();
+    post.setPostId(postId); 
+
     try {
-        String postId = UUID.randomUUID().toString();
-        post.setPostId(postId); 
         hibernate.persist(post);
         return Result.ok(postId);
     } catch (Exception e) {
@@ -245,6 +246,11 @@ public Result<List<String>> getPosts(long timestamp, String sortOrder) {
             Log.info("getPostAnswers: Invalid postId.");
             return Result.error(ErrorCode.BAD_REQUEST);
         }
+
+        if (!initializeUsersClient()) {
+            Log.warning("Cannot initialize UsersClient, skipping user-related operations");
+            return Result.error(ErrorCode.INTERNAL_ERROR);
+        }
     
         try (Session session = Hibernate.getInstance().sessionFactory.openSession()) {
             Post parentPost = session.get(Post.class, postId);
@@ -252,9 +258,15 @@ public Result<List<String>> getPosts(long timestamp, String sortOrder) {
                 Log.info("getPostAnswers: Post not found.");
                 return Result.error(ErrorCode.NOT_FOUND);
             }
-    
+                
             String serverIp = InetAddress.getLocalHost().getHostAddress();
-            String parentUrl = String.format("http://%s:8081/rest/posts/%s", serverIp, postId);
+
+            String parentUrl = null;
+            if (usersClient instanceof RestUsersClient) {
+                parentUrl = String.format("http://%s:8081/rest/posts/%s", serverIp, postId);
+            } else if (usersClient instanceof GrpcUsersClient) {
+                parentUrl = String.format("grpc://%s:9002/grpc/posts/%s", serverIp, postId);
+            } 
     
             TypedQuery<String> query = session.createQuery(
                 "SELECT p.postId FROM Post p WHERE p.parentUrl = :parentUrl",
